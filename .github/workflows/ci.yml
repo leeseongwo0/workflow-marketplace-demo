@@ -36,3 +36,6 @@ jobs:
 
       - name: Run required checks
         run: pnpm check
+
+      - name: Build presentation UI
+        run: pnpm --filter web build

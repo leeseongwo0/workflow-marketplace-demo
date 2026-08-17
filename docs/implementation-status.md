@@ -35,6 +35,7 @@ Status: complete (2026-08-17). Verified with pnpm 11.22.0, strict TypeScript, an
 
 ## Phase 5 — Web app
 
+- [x] Add a clearly labeled local fixture presentation preview with no live wallet or network calls
 - [ ] Implement the presentation UI, wallet/license flow, execution states, and receipt recording
 
 ## Phase 6 — Testnet end-to-end
