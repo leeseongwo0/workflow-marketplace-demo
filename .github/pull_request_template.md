@@ -1,20 +1,12 @@
-## Summary
+## 무엇을 바꿨나요?
 
-<!-- What changed and why? -->
+<!-- 변경한 내용과 이유를 간단히 적어 주세요. -->
 
-## Scope and decisions
+## 확인
 
-<!-- Name the active phase and any architecture/security decision. Write "None" when not applicable. -->
+- [ ] `pnpm check`를 실행했습니다.
+- [ ] 비밀정보가 포함되지 않았습니다.
 
-## Verification
+## 참고할 내용
 
-- [ ] `pnpm typecheck`
-- [ ] `pnpm test`
-- [ ] Tests are deterministic and do not require live services
-- [ ] `docs/implementation-status.md` is updated when phase evidence changed
-- [ ] No secret, private key, DEK, keyring, or decrypted bundle is included
-- [ ] No unrelated files or protected interfaces were changed
-
-## Review notes
-
-<!-- Call out risks, follow-up work, and anything the reviewer should inspect closely. -->
+<!-- 리뷰어가 알아야 할 내용이 없다면 비워 두어도 됩니다. -->

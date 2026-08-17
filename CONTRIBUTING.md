@@ -1,41 +1,19 @@
 # Contributing
 
-## Before starting
-
-1. Read `AGENTS.md` and `CODEX_IMPLEMENTATION_BRIEF.md`.
-2. Check `docs/implementation-status.md` and work within the active phase.
-3. Branch from an up-to-date `main` using `feat/`, `fix/`, `test/`, or `docs/` prefixes.
-4. Coordinate ownership before changing files another contributor is editing.
-
-## Development workflow
+처음 참여할 때는 `README.md`를 읽고 아래 명령으로 프로젝트를 준비합니다.
 
 ```bash
 corepack enable
 pnpm install --frozen-lockfile
-git switch -c feat/short-description
 pnpm check
 ```
 
-Keep pull requests small and phase-scoped. Use Conventional Commit-style subjects such as `feat: add receipt schema` or `test: cover RSS cutoff boundary`.
+여러 사람이 같은 파일을 동시에 수정하지 않도록 시작 전에 작업 범위를 서로 공유해 주세요. 필요하면 새 브랜치를 만들 수 있지만, 브랜치 이름이나 커밋 메시지 형식을 강제하지는 않습니다.
 
-Before requesting review:
+변경사항을 공유하기 전에는 다음 세 가지만 확인합니다.
 
-- run `pnpm check` and report the exact results;
-- update `docs/implementation-status.md` when phase evidence changes;
-- confirm fixtures and unit tests are deterministic and offline;
-- confirm no secret, keyring, decrypted bundle, or live credential is included;
-- describe architecture or security decisions explicitly;
-- avoid mixing formatting or unrelated refactors into the change.
+- 한 번에 이해하기 쉬운 작은 범위로 변경했는지 확인합니다.
+- `pnpm check`가 통과하는지 확인합니다.
+- `.env`, 개인 키, DEK, 로컬 키링 같은 비밀정보가 없는지 확인합니다.
 
-## Protected boundaries
-
-Technical-owner review is required for Sui Move ownership/payment/license/replay rules, wallet and executor signatures, TypeScript/Move BCS compatibility, AES-GCM formats and AAD, key custody, Walrus integrity, Seal policy, and security-sensitive API sequencing.
-
-Do not add Nautilus, TEE code, arbitrary workflow execution, full article crawling, seller UI, Fork creation, or royalties unless the implementation brief is intentionally revised by the technical owner.
-
-## Merge policy
-
-- Merge through a pull request after CI passes.
-- Require at least one reviewer; require the technical owner for protected boundaries.
-- Prefer squash merge so each pull request becomes one coherent change on `main`.
-- Do not force-push shared branches without coordinating with their contributors.
+Pull Request에는 무엇을 왜 바꿨는지와 테스트 결과를 간단히 적어 주세요. Move 권한·결제 규칙이나 암호화·키 관리처럼 보안에 영향을 주는 변경은 구현 전에 기술 담당자와 상의합니다.
