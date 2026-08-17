@@ -6,7 +6,7 @@ Phase 1 is complete: the shared schemas and Google News RSS workflow core are st
 
 ## Requirements
 
-- Node.js 20.19 or newer
+- Node.js 22.13 or newer
 - pnpm 11.22.0 (declared in `package.json`)
 
 ## Local setup
