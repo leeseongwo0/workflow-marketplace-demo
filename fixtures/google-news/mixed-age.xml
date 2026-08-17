@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Google News fixture</title>
+    <link>https://news.google.com/rss/search?q=fixture</link>
+    <description>Deterministic age and input validation cases.</description>
+    <item>
+      <title>Exact cutoff</title>
+      <link>https://news.google.com/rss/articles/exact-cutoff</link>
+      <pubDate>2026-08-16T09:00:00.000Z</pubDate>
+      <source url="https://news.google.com/rss/articles/source-boundary">Boundary Source</source>
+    </item>
+    <item>
+      <title>One millisecond old</title>
+      <link>https://news.google.com/rss/articles/too-old</link>
+      <pubDate>2026-08-16T08:59:59.999Z</pubDate>
+      <source url="https://news.google.com/rss/articles/source-old">Old Source</source>
+    </item>
+    <item>
+      <title>Exact future allowance</title>
+      <link>https://news.google.com/rss/articles/exact-future</link>
+      <pubDate>2026-08-17T09:05:00.000Z</pubDate>
+      <source url="https://news.google.com/rss/articles/source-future">Future Source</source>
+    </item>
+    <item>
+      <title>One millisecond beyond future allowance</title>
+      <link>https://news.google.com/rss/articles/too-future</link>
+      <pubDate>2026-08-17T09:05:00.001Z</pubDate>
+      <source url="https://news.google.com/rss/articles/source-too-future">Too Future Source</source>
+    </item>
+    <item>
+      <title>Invalid date</title>
+      <link>https://news.google.com/rss/articles/invalid-date</link>
+      <pubDate>not-a-date</pubDate>
+      <source url="https://news.google.com/rss/articles/source-invalid">Invalid Source</source>
+    </item>
+    <item>
+      <title>Non HTTP item link</title>
+      <link>javascript:alert(1)</link>
+      <pubDate>2026-08-17T08:00:00.000Z</pubDate>
+      <source url="https://news.google.com/rss/articles/source-non-http">Unsafe Link Source</source>
+    </item>
+    <item>
+      <title>   </title>
+      <link>https://news.google.com/rss/articles/empty-title</link>
+      <pubDate>2026-08-17T08:00:00.000Z</pubDate>
+      <source url="https://news.google.com/rss/articles/source-empty-title">Empty Title Source</source>
+    </item>
+    <item>
+      <title>  &lt;b&gt;Sui&lt;/b&gt;   &amp;   News  </title>
+      <link>https://news.google.com/rss/articles/normalized-title</link>
+      <pubDate>2026-08-17T08:30:00.000Z</pubDate>
+      <source url="https://news.google.com/rss/articles/source-normalized">  Fixture &amp; Source  </source>
+    </item>
+  </channel>
+</rss>

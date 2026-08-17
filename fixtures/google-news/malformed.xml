@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Malformed fixture</title>
+    <item>
+      <title>Missing closing item element</title>
+      <link>https://news.google.com/rss/articles/malformed</link>
+      <pubDate>2026-08-17T08:00:00.000Z</pubDate>
+    </channel>
+</rss>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Google News max-results fixture</title>
+    <link>https://news.google.com/rss/search?q=max-results</link>
+    <item>
+      <title>Newest result</title>
+      <link>https://news.google.com/rss/articles/max-newest</link>
+      <pubDate>2026-08-17T08:50:00.000Z</pubDate>
+      <source url="https://news.google.com/rss/articles/source-max-a">Source A</source>
+    </item>
+    <item>
+      <title>Second result</title>
+      <link>https://news.google.com/rss/articles/max-second</link>
+      <pubDate>2026-08-17T08:40:00.000Z</pubDate>
+      <source url="https://news.google.com/rss/articles/source-max-b">Source B</source>
+    </item>
+    <item>
+      <title>Third result</title>
+      <link>https://news.google.com/rss/articles/max-third</link>
+      <pubDate>2026-08-17T08:30:00.000Z</pubDate>
+      <source url="https://news.google.com/rss/articles/source-max-c">Source C</source>
+    </item>
+    <item>
+      <title>Fourth result</title>
+      <link>https://news.google.com/rss/articles/max-fourth</link>
+      <pubDate>2026-08-17T08:20:00.000Z</pubDate>
+      <source url="https://news.google.com/rss/articles/source-max-d">Source D</source>
+    </item>
+  </channel>
+</rss>

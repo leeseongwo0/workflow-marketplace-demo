@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Empty Google News fixture</title>
+    <link>https://news.google.com/rss/search?q=empty</link>
+    <description>No item elements.</description>
+  </channel>
+</rss>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Google News duplicate fixture</title>
+    <link>https://news.google.com/rss/search?q=duplicates</link>
+    <item>
+      <title>  &lt;b&gt;Sui&lt;/b&gt;   News </title>
+      <link>https://news.google.com/rss/articles/duplicate-old</link>
+      <pubDate>2026-08-17T07:00:00.000Z</pubDate>
+      <source url="https://news.google.com/rss/articles/source-yonhap">Yonhap  News</source>
+    </item>
+    <item>
+      <title>Sui News</title>
+      <link>https://news.google.com/rss/articles/duplicate-new</link>
+      <pubDate>2026-08-17T08:30:00.000Z</pubDate>
+      <source url="https://news.google.com/rss/articles/source-yonhap"> Yonhap News </source>
+    </item>
+    <item>
+      <title>Sui &amp; News</title>
+      <link>https://news.google.com/rss/articles/entity-title</link>
+      <pubDate>2026-08-17T08:00:00.000Z</pubDate>
+      <source url="https://news.google.com/rss/articles/source-korea">Korea &amp; Media</source>
+    </item>
+    <item>
+      <title>Other headline</title>
+      <link>https://news.google.com/rss/articles/unique</link>
+      <pubDate>2026-08-17T08:15:00.000Z</pubDate>
+      <source url="https://news.google.com/rss/articles/source-other">Other Source</source>
+    </item>
+  </channel>
+</rss>
