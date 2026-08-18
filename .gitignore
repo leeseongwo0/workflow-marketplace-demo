@@ -2,6 +2,7 @@ node_modules/
 .pnpm-store/
 dist/
 coverage/
+move/**/build/
 .env
 .env.*
 !.env.example

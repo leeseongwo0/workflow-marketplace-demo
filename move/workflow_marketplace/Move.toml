@@ -1,0 +1,8 @@
+[package]
+name = "workflow_marketplace"
+version = "0.0.1"
+edition = "2024"
+license = "Apache-2.0"
+
+[addresses]
+workflow_marketplace = "0x0"
