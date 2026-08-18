@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { LandingPage } from "./LandingPage";
+
 type DemoStep = "wallet" | "license" | "run" | "receipt";
 type AsyncState = "idle" | "pending" | "complete";
 
@@ -75,7 +77,7 @@ function FieldRow({ label, value, muted = false }: { label: string; value: strin
   );
 }
 
-export function App() {
+function DemoPage() {
   const [walletState, setWalletState] = useState<AsyncState>("idle");
   const [licenseState, setLicenseState] = useState<AsyncState>("idle");
   const [runState, setRunState] = useState<AsyncState>("idle");
@@ -141,12 +143,13 @@ export function App() {
   return (
     <main>
       <header className="topbar">
-        <a className="brand" href="#overview" aria-label="AI Workflow Marketplace 홈">
+        <a className="brand" href="/" aria-label="AI Workflow Marketplace 소개로 돌아가기">
           <span className="brand-mark"><SparkIcon /></span>
           <span>WORKFLOW<span className="brand-accent">/MARKET</span></span>
         </a>
         <div className="topbar-actions">
           <span className="fixture-badge"><StatusDot state="ready" />Fixture mode</span>
+          <a className="topbar-link" href="/">← 소개</a>
           <button className="text-button" type="button" onClick={resetDemo}>데모 초기화</button>
         </div>
       </header>
@@ -409,4 +412,23 @@ export function App() {
       </footer>
     </main>
   );
+}
+
+export function App() {
+  const normalizedPath = window.location.pathname.replace(/\/+$/, "") || "/";
+  const isDemoRoute = normalizedPath === "/app";
+
+  useEffect(() => {
+    const title = isDemoRoute
+      ? "Google News RSS Monitor · Fixture Demo"
+      : "Workflow/Market · Licensed AI Workflow Assets";
+    const description = isDemoRoute
+      ? "Google News RSS Monitor의 로컬 Fixture mode 실행 데모"
+      : "라이선스 가능한 AI 워크플로 에셋을 소개하는 Workflow/Market 로컬 프리뷰";
+
+    document.title = title;
+    document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute("content", description);
+  }, [isDemoRoute]);
+
+  return isDemoRoute ? <DemoPage /> : <LandingPage />;
 }
