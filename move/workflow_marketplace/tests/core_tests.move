@@ -50,7 +50,11 @@ fun publish_release_for_root(
 
 fun setup_release(scenario: &mut test_scenario::Scenario, active: bool) {
     test_scenario::create_system_objects(scenario);
-    marketplace::create_marketplace(executor_public_key(), scenario.ctx());
+    marketplace::init_for_testing(scenario.ctx());
+
+    scenario.next_tx(CREATOR);
+    let admin_cap = scenario.take_from_sender<marketplace::MarketplaceAdminCap>();
+    marketplace::create_marketplace(admin_cap, executor_public_key(), scenario.ctx());
 
     let clock = scenario.take_shared<Clock>();
     marketplace::create_workflow_root(
@@ -129,6 +133,27 @@ fun wrong_payment_aborts() {
     let release = scenario.take_shared<marketplace::WorkflowRelease>();
     let clock = scenario.take_shared<Clock>();
     let payment = coin::mint_for_testing<SUI>(PRICE_MIST + 1, scenario.ctx());
+    marketplace::purchase_license(
+        &mut marketplace,
+        &release,
+        payment,
+        &clock,
+        scenario.ctx(),
+    );
+
+    abort 1337
+}
+
+#[test, expected_failure(abort_code = 3)]
+fun underpayment_aborts() {
+    let mut scenario = test_scenario::begin(CREATOR);
+    setup_release(&mut scenario, true);
+
+    scenario.next_tx(BUYER);
+    let mut marketplace = scenario.take_shared<marketplace::Marketplace>();
+    let release = scenario.take_shared<marketplace::WorkflowRelease>();
+    let clock = scenario.take_shared<Clock>();
+    let payment = coin::mint_for_testing<SUI>(PRICE_MIST - 1, scenario.ctx());
     marketplace::purchase_license(
         &mut marketplace,
         &release,
@@ -244,6 +269,74 @@ fun mismatched_root_cannot_change_release_status() {
         &root_one,
         &mut release_two,
         false,
+        scenario.ctx(),
+    );
+
+    abort 1337
+}
+
+#[test]
+fun marketplace_admin_cap_is_consumed_after_creation() {
+    let mut scenario = test_scenario::begin(CREATOR);
+    test_scenario::create_system_objects(&mut scenario);
+    marketplace::init_for_testing(scenario.ctx());
+
+    scenario.next_tx(CREATOR);
+    assert!(test_scenario::has_most_recent_for_sender<marketplace::MarketplaceAdminCap>(&scenario));
+    let admin_cap = scenario.take_from_sender<marketplace::MarketplaceAdminCap>();
+    marketplace::create_marketplace(admin_cap, executor_public_key(), scenario.ctx());
+
+    scenario.next_tx(CREATOR);
+    assert!(!test_scenario::has_most_recent_for_sender<marketplace::MarketplaceAdminCap>(&scenario));
+    let marketplace = scenario.take_shared<marketplace::Marketplace>();
+    test_scenario::return_shared(marketplace);
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = 10)]
+fun invalid_executor_key_length_aborts() {
+    let mut scenario = test_scenario::begin(CREATOR);
+    test_scenario::create_system_objects(&mut scenario);
+    marketplace::init_for_testing(scenario.ctx());
+
+    scenario.next_tx(CREATOR);
+    let admin_cap = scenario.take_from_sender<marketplace::MarketplaceAdminCap>();
+    marketplace::create_marketplace(admin_cap, b"short", scenario.ctx());
+
+    abort 1337
+}
+
+#[test, expected_failure(abort_code = 11)]
+fun unsupported_workflow_type_aborts() {
+    let mut scenario = test_scenario::begin(CREATOR);
+    test_scenario::create_system_objects(&mut scenario);
+    let clock = scenario.take_shared<Clock>();
+    marketplace::create_workflow_root(
+        b"Unsupported workflow",
+        hash_32(),
+        &clock,
+        scenario.ctx(),
+    );
+    test_scenario::return_shared(clock);
+
+    scenario.next_tx(CREATOR);
+    let mut root = scenario.take_from_sender<marketplace::WorkflowRoot>();
+    let clock = scenario.take_shared<Clock>();
+    marketplace::publish_release(
+        &mut root,
+        1,
+        0,
+        0,
+        b"Unsupported workflow",
+        b"Must be rejected",
+        b"arbitrary_code/v1",
+        b"walrus-test-blob",
+        hash_32(),
+        hash_32(),
+        b"root:release:1.0.0",
+        PRICE_MIST,
+        true,
+        &clock,
         scenario.ctx(),
     );
 

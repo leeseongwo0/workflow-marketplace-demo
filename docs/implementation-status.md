@@ -1,6 +1,6 @@
 # Implementation status
 
-Baseline: the supplied directory contained planning/configuration documents but no Git metadata, package manifest, application code, or dependency lockfile. After Phase 1 verification, the workspace was initialized as a Git repository on `main` and prepared for pull-request collaboration; no remote has been connected. The root project rules and implementation brief were derived from the retained preparation bundle.
+Baseline: the supplied directory contained planning/configuration documents but no Git metadata, package manifest, application code, or dependency lockfile. After Phase 1 verification, the workspace was initialized as a Git repository on `main` and connected to the public GitHub collaboration remote. The root project rules and implementation brief were derived from the retained preparation bundle.
 
 ## Phase 1 — Repository and deterministic workflow core
 
@@ -21,8 +21,17 @@ Status: complete (2026-08-17). Verified with pnpm 11.22.0, strict TypeScript, an
 
 ## Phase 2 — Move package
 
-- [ ] Design and implement Move objects, ownership, payments, licenses, receipt signatures, and replay prevention
-- [ ] Pass `sui move build` and `sui move test`
+Status: complete (2026-08-18). Verified with Sui 1.77.2, a real deterministic Ed25519/BCS receipt vector, and 20 Move tests.
+
+- [x] Restrict production to one canonical shared `Marketplace` using a publisher-owned, one-use, non-transferable creation cap
+- [x] Implement creator-owned roots, shared releases, and non-transferable address-owned licenses and receipts
+- [x] Enforce active release, exact-price payment to the creator, and one license per buyer/release
+- [x] Enforce sender/runner, exact release/pass registry membership, 32-byte hashes, executor signature, and global nonce replay prevention
+- [x] Test creator authorization, release status, both payment directions, payment transfer, duplicate licenses, and workflow-type restriction
+- [x] Test valid and modified Ed25519 receipts, wrong runner, wrong release/pass, foreign-market pass, all hash lengths, and nonce replay
+- [x] Pass `sui move build`
+- [x] Pass `sui move test` with 20/20 tests
+- [x] Pass read-only Sol security review with no remaining critical or major findings
 
 ## Phase 3 — Crypto, Walrus, and bootstrap
 

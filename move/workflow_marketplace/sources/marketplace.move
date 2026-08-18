@@ -21,6 +21,7 @@ const E_RECEIPT_REPLAY: u64 = 8;
 const E_INVALID_HASH_LENGTH: u64 = 9;
 const E_INVALID_EXECUTOR_KEY: u64 = 10;
 const E_INVALID_RELEASE: u64 = 11;
+const E_LICENSE_NOT_REGISTERED: u64 = 12;
 
 const HASH_LENGTH: u64 = 32;
 const ED25519_PUBLIC_KEY_LENGTH: u64 = 32;
@@ -35,6 +36,11 @@ public struct Marketplace has key {
     executor_public_key: vector<u8>,
     used_receipt_nonces: Table<vector<u8>, bool>,
     license_registry: Table<LicenseKey, ID>,
+}
+
+/// One-use, non-transferable authority created only when the package is first published.
+public struct MarketplaceAdminCap has key {
+    id: UID,
 }
 
 public struct LicenseKey has copy, drop, store {
@@ -105,7 +111,21 @@ public struct ReceiptMessage has copy, drop {
     nonce_hash: vector<u8>,
 }
 
-public fun create_marketplace(executor_public_key: vector<u8>, ctx: &mut TxContext) {
+fun init(ctx: &mut TxContext) {
+    transfer::transfer(MarketplaceAdminCap { id: object::new(ctx) }, ctx.sender());
+}
+
+public fun create_marketplace(
+    admin_cap: MarketplaceAdminCap,
+    executor_public_key: vector<u8>,
+    ctx: &mut TxContext,
+) {
+    let MarketplaceAdminCap { id } = admin_cap;
+    id.delete();
+    create_marketplace_inner(executor_public_key, ctx);
+}
+
+fun create_marketplace_inner(executor_public_key: vector<u8>, ctx: &mut TxContext) {
     assert!(executor_public_key.length() == ED25519_PUBLIC_KEY_LENGTH, E_INVALID_EXECUTOR_KEY);
     let marketplace = Marketplace {
         id: object::new(ctx),
@@ -115,6 +135,19 @@ public fun create_marketplace(executor_public_key: vector<u8>, ctx: &mut TxConte
         license_registry: table::new(ctx),
     };
     transfer::share_object(marketplace);
+}
+
+#[test_only]
+public fun init_for_testing(ctx: &mut TxContext) {
+    init(ctx);
+}
+
+#[test_only]
+public fun create_marketplace_for_testing(
+    executor_public_key: vector<u8>,
+    ctx: &mut TxContext,
+) {
+    create_marketplace_inner(executor_public_key, ctx);
 }
 
 public fun create_workflow_root(
@@ -250,6 +283,13 @@ public fun record_execution(
     assert!(output_hash.length() == HASH_LENGTH, E_INVALID_HASH_LENGTH);
     assert!(nonce_hash.length() == HASH_LENGTH, E_INVALID_HASH_LENGTH);
     assert!(!marketplace.used_receipt_nonces.contains(copy nonce_hash), E_RECEIPT_REPLAY);
+
+    let license_key = LicenseKey { release_id: license.release_id, owner: runner };
+    assert!(marketplace.license_registry.contains(copy license_key), E_LICENSE_NOT_REGISTERED);
+    assert!(
+        *marketplace.license_registry.borrow(license_key) == object::id(license),
+        E_LICENSE_NOT_REGISTERED,
+    );
 
     let license_id = object::id(license).to_address();
     let message = receipt_message_bytes(
