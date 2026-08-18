@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { LandingPage } from "./LandingPage";
 
-type DemoStep = "wallet" | "license" | "run" | "receipt";
 type AsyncState = "idle" | "pending" | "complete";
+type WalletState = AsyncState;
+type Stage = "license" | "execution" | "report";
 
 type FixtureNewsItem = {
   id: string;
@@ -41,13 +42,6 @@ const FIXTURE_RESULTS: readonly FixtureNewsItem[] = [
   },
 ] as const;
 
-const FLOW_STEPS: readonly { key: DemoStep; label: string; eyebrow: string }[] = [
-  { key: "wallet", label: "Wallet", eyebrow: "01" },
-  { key: "license", label: "License", eyebrow: "02" },
-  { key: "run", label: "Run", eyebrow: "03" },
-  { key: "receipt", label: "Receipt", eyebrow: "04" },
-] as const;
-
 const SECURITY_LABELS = [
   "Execution mode: Local server",
   "Nautilus: Not implemented",
@@ -56,329 +50,459 @@ const SECURITY_LABELS = [
   "Network: Sui Testnet / Walrus Testnet",
 ] as const;
 
-function ArrowIcon() {
-  return <span aria-hidden="true" className="arrow-icon">→</span>;
-}
-
-function SparkIcon() {
-  return <span aria-hidden="true" className="spark-icon">✦</span>;
-}
-
-function StatusDot({ state }: { state: "ready" | "waiting" | "offline" }) {
-  return <span aria-hidden="true" className={`status-dot status-dot--${state}`} />;
-}
-
-function FieldRow({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
+function FixtureMark() {
   return (
-    <div className="field-row">
-      <dt>{label}</dt>
-      <dd className={muted ? "field-muted" : undefined}>{value}</dd>
+    <span className="demo-brand-mark" aria-hidden="true">
+      ✦
+    </span>
+  );
+}
+
+function SecurityDisclosure() {
+  return (
+    <aside className="demo-security" aria-label="Fixture security disclosure">
+      <div className="demo-security-heading">
+        <span>FIXTURE MODE</span>
+        <small>Local presentation boundary</small>
+      </div>
+      <ul>
+        {SECURITY_LABELS.map((label) => (
+          <li key={label}>{label}</li>
+        ))}
+      </ul>
+    </aside>
+  );
+}
+
+function StageMarker({ label, number }: { label: string; number: string }) {
+  return (
+    <div className="demo-stage-marker">
+      <span>{number}</span>
+      <strong>{label}</strong>
+      <em>Fixture mode</em>
+    </div>
+  );
+}
+
+function LicenseStage({
+  walletState,
+  licenseState,
+  onLicense,
+}: {
+  walletState: WalletState;
+  licenseState: AsyncState;
+  onLicense: () => void;
+}) {
+  const walletReady = walletState === "complete";
+  const licensePending = licenseState === "pending";
+
+  return (
+    <section className="demo-stage demo-stage--license" aria-labelledby="license-title">
+      <StageMarker label="LicensePass" number="01" />
+      <div className="demo-license-card">
+        <p className="demo-eyebrow">GOOGLE NEWS RSS MONITOR</p>
+        <h1 id="license-title">LicensePass</h1>
+        <p className="demo-stage-intro">
+          하나의 검색 워크플로를 실행할 수 있는 fixture 라이선스 상태만 준비합니다.
+        </p>
+
+        <dl className="demo-facts">
+          <div>
+            <dt>Workflow</dt>
+            <dd>Google News RSS Monitor</dd>
+          </div>
+          <div>
+            <dt>Version</dt>
+            <dd>1.0.0</dd>
+          </div>
+          <div>
+            <dt>Price</dt>
+            <dd>0.10 Testnet SUI · display only</dd>
+          </div>
+          <div>
+            <dt>Current license state</dt>
+            <dd>{
+              licensePending
+                ? "Fixture action pending"
+                : walletReady
+                  ? "Ready for fixture action"
+                  : "Wallet login required"
+            }</dd>
+          </div>
+        </dl>
+
+        <p className="demo-operational-hint">
+          {walletReady
+            ? "The next step stays local to this presentation fixture."
+            : "Wallet login is required before the fixture license action can begin."}
+        </p>
+        <button
+          className="demo-primary-button"
+          type="button"
+          disabled={!walletReady || licenseState !== "idle"}
+          onClick={onLicense}
+        >
+          {licensePending ? "Preparing fixture state…" : "Continue with LicensePass"}
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function ExecutionStage({
+  query,
+  runState,
+  queryInputRef,
+  onQueryChange,
+  onRun,
+}: {
+  query: string;
+  runState: AsyncState;
+  queryInputRef: React.RefObject<HTMLInputElement | null>;
+  onQueryChange: (value: string) => void;
+  onRun: () => void;
+}) {
+  return (
+    <section className="demo-stage demo-stage--execution" aria-labelledby="execution-title">
+      <StageMarker label="Execution" number="02" />
+      <div className="demo-query-surface">
+        <p className="demo-eyebrow">GOOGLE NEWS RSS MONITOR · FIXTURE INPUT</p>
+        <h1 id="execution-title">What should we search?</h1>
+        <form
+          className="demo-query-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onRun();
+          }}
+        >
+          <label htmlFor="fixture-query">Search query</label>
+          <div className="demo-query-field">
+            <input
+              ref={queryInputRef}
+              id="fixture-query"
+              value={query}
+              maxLength={80}
+              onChange={(event) => onQueryChange(event.target.value)}
+              placeholder="예: 생성형 AI 정책"
+              autoComplete="off"
+              disabled={runState === "pending"}
+            />
+            <button
+              className="demo-query-submit"
+              type="submit"
+              disabled={runState === "pending" || !query.trim()}
+              aria-label="Run fixture query"
+            >
+              {runState === "pending" ? "…" : "→"}
+            </button>
+          </div>
+        </form>
+        <p className="demo-stage-note" aria-live="polite">
+          {runState === "pending"
+            ? "Preparing the fixture report…"
+            : "Fixture mode · this query stays in browser state and makes no network request."}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function ReportStage({
+  onReceiptOpen,
+  receiptTriggerRef,
+}: {
+  onReceiptOpen: () => void;
+  receiptTriggerRef: React.RefObject<HTMLButtonElement | null>;
+}) {
+  return (
+    <section className="demo-stage demo-stage--report" aria-labelledby="report-title">
+      <StageMarker label="Report" number="03" />
+      <div className="demo-report-surface">
+        <div className="demo-report-heading">
+          <div>
+            <p className="demo-eyebrow">FIXTURE OUTPUT · LATEST FIRST</p>
+            <h1 id="report-title">Signal report</h1>
+          </div>
+          <div className="demo-result-count" aria-label={`${FIXTURE_RESULTS.length} fixture results`}>
+            <strong>{FIXTURE_RESULTS.length}</strong>
+            <span>RESULTS</span>
+          </div>
+        </div>
+
+        <p className="demo-fixture-disclosure">
+          <strong>Fixture mode</strong> · 발표용으로 고정된 결과이며 실시간 Google News 응답이 아닙니다.
+        </p>
+
+        <ol className="demo-news-list" aria-label="Fixture news results">
+          {FIXTURE_RESULTS.map((item, index) => (
+            <li key={item.id}>
+              <span className="demo-news-index">{String(index + 1).padStart(2, "0")}</span>
+              <div>
+                <div className="demo-news-meta">
+                  <span>{item.source}</span>
+                  <time>{item.publishedAt}</time>
+                  <i>{item.accent}</i>
+                </div>
+                <h2>{item.title}</h2>
+                <p className="demo-news-url">Fixture result URL · external navigation disabled</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+
+        <button
+          ref={receiptTriggerRef}
+          className="demo-secondary-button"
+          type="button"
+          onClick={onReceiptOpen}
+        >
+          Receipt 확인하기 <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function ReceiptModal({
+  open,
+  closeButtonRef,
+  onClose,
+}: {
+  open: boolean;
+  closeButtonRef: React.RefObject<HTMLButtonElement | null>;
+  onClose: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="demo-modal-backdrop"
+      role="presentation"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        className="demo-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="receipt-dialog-title"
+        aria-describedby="receipt-dialog-description"
+      >
+        <div className="demo-modal-heading">
+          <div>
+            <p className="demo-eyebrow">LOCAL PREVIEW · NOT RECORDED</p>
+            <h2 id="receipt-dialog-title">Receipt preview</h2>
+          </div>
+          <button
+            ref={closeButtonRef}
+            className="demo-modal-close"
+            type="button"
+            onClick={onClose}
+            aria-label="Close receipt preview"
+          >
+            ×
+          </button>
+        </div>
+        <p id="receipt-dialog-description" className="demo-modal-description">
+          This is a local fixture preview. No receipt is signed or submitted on-chain.
+        </p>
+        <pre className="demo-receipt-preview" aria-label="Receipt preview payload">
+{`{
+  "status": "fixture preview · not signed",
+  "workflowType": "google_news_rss/v1",
+  "releaseId": "Not published",
+  "resultCount": ${FIXTURE_RESULTS.length}
+}`}
+        </pre>
+        <dl className="demo-receipt-facts">
+          <div>
+            <dt>Key fingerprint</dt>
+            <dd>Unavailable · fixture key not exposed</dd>
+          </div>
+          <div>
+            <dt>Receipt object ID</dt>
+            <dd>Not published</dd>
+          </div>
+          <div>
+            <dt>Transaction digest</dt>
+            <dd>Not published</dd>
+          </div>
+          <div>
+            <dt>Explorer link</dt>
+            <dd>Unavailable · no live explorer link</dd>
+          </div>
+        </dl>
+      </section>
     </div>
   );
 }
 
 function DemoPage() {
-  const [walletState, setWalletState] = useState<AsyncState>("idle");
+  const [walletState, setWalletState] = useState<WalletState>("idle");
+  const [stage, setStage] = useState<Stage>("license");
   const [licenseState, setLicenseState] = useState<AsyncState>("idle");
   const [runState, setRunState] = useState<AsyncState>("idle");
-  const [receiptState, setReceiptState] = useState<AsyncState>("idle");
   const [query, setQuery] = useState("생성형 AI 정책");
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queryInputRef = useRef<HTMLInputElement>(null);
+  const receiptTriggerRef = useRef<HTMLButtonElement>(null);
+  const receiptCloseButtonRef = useRef<HTMLButtonElement>(null);
 
-  const walletReady = walletState === "complete";
-  const licenseReady = licenseState === "complete";
-  const runReady = runState === "complete";
-  const receiptReady = receiptState === "complete";
-
-  const activeStep: DemoStep = useMemo(() => {
-    if (!walletReady) return "wallet";
-    if (!licenseReady) return "license";
-    if (!runReady) return "run";
-    return "receipt";
-  }, [licenseReady, runReady, walletReady]);
-
-  const addTimer = (callback: () => void, milliseconds: number) => {
-    timers.current.push(setTimeout(callback, milliseconds));
+  const scheduleTransition = (callback: () => void, delay: number) => {
+    if (transitionTimer.current !== null) clearTimeout(transitionTimer.current);
+    transitionTimer.current = setTimeout(() => {
+      transitionTimer.current = null;
+      callback();
+    }, delay);
   };
 
   useEffect(() => {
     return () => {
-      timers.current.forEach(clearTimeout);
+      if (transitionTimer.current !== null) clearTimeout(transitionTimer.current);
     };
   }, []);
 
-  const simulateWallet = () => {
+  useEffect(() => {
+    if (stage === "execution") queryInputRef.current?.focus();
+  }, [stage]);
+
+  useEffect(() => {
+    if (!receiptOpen) return;
+
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusTimer = window.setTimeout(() => receiptCloseButtonRef.current?.focus(), 0);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setReceiptOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleKeyDown);
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, [receiptOpen]);
+
+  const handleWallet = () => {
+    if (walletState !== "idle") return;
     setWalletState("pending");
-    addTimer(() => setWalletState("complete"), 700);
+    scheduleTransition(() => setWalletState("complete"), 650);
   };
 
-  const simulateLicense = () => {
+  const handleLicense = () => {
+    if (walletState !== "complete" || licenseState !== "idle") return;
     setLicenseState("pending");
-    addTimer(() => setLicenseState("complete"), 850);
+    scheduleTransition(() => {
+      setLicenseState("complete");
+      setStage("execution");
+    }, 800);
   };
 
-  const simulateRun = () => {
-    if (!query.trim()) return;
+  const handleRun = () => {
+    if (stage !== "execution" || runState !== "idle" || !query.trim()) return;
     setRunState("pending");
-    setReceiptState("idle");
-    addTimer(() => setRunState("complete"), 1150);
-  };
-
-  const simulateReceipt = () => {
-    setReceiptState("pending");
-    addTimer(() => setReceiptState("complete"), 780);
+    scheduleTransition(() => {
+      setRunState("complete");
+      setStage("report");
+    }, 950);
   };
 
   const resetDemo = () => {
-    timers.current.forEach(clearTimeout);
-    timers.current = [];
+    if (transitionTimer.current !== null) clearTimeout(transitionTimer.current);
+    transitionTimer.current = null;
     setWalletState("idle");
+    setStage("license");
     setLicenseState("idle");
     setRunState("idle");
-    setReceiptState("idle");
     setQuery("생성형 AI 정책");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setReceiptOpen(false);
   };
 
+  const liveMessage = walletState === "pending"
+    ? "Fixture wallet state is preparing."
+    : licenseState === "pending"
+      ? "Fixture LicensePass state is preparing."
+      : runState === "pending"
+        ? "Fixture report is preparing."
+        : stage === "report"
+          ? "Fixture report is ready. Receipt preview remains local."
+          : stage === "execution"
+            ? "LicensePass fixture state is ready. Execution input is available."
+            : "Wallet login is required before the fixture license action can begin.";
+
   return (
-    <main>
-      <header className="topbar">
-        <a className="brand" href="/" aria-label="Workflow Market 홈">
-          <span className="brand-mark"><SparkIcon /></span>
-          <span>WORKFLOW<span className="brand-accent">/MARKET</span></span>
+    <main className="demo-page">
+      <header className="demo-topbar">
+        <a className="demo-back-link" href="/" aria-label="Back to Workflow Market home">
+          <FixtureMark />
+          <span>WORKFLOW<span>/MARKET</span></span>
+          <small>← Back</small>
         </a>
-        <div className="topbar-actions">
-          <span className="fixture-badge"><StatusDot state="ready" />Fixture mode</span>
-          <button className="text-button" type="button" onClick={resetDemo}>초기화</button>
-          <a className="topbar-link" href="/">← 랜딩</a>
+        <div className="demo-topbar-actions">
+          <span className="demo-fixture-pill">Fixture mode</span>
+          <button
+            className="demo-wallet-button"
+            type="button"
+            onClick={handleWallet}
+            disabled={walletState !== "idle"}
+            aria-busy={walletState === "pending"}
+          >
+            <span className="demo-wallet-dot" aria-hidden="true" />
+            {walletState === "pending"
+              ? "Connecting fixture…"
+              : walletState === "complete"
+                ? "Fixture wallet · connected"
+                : "Log in wallet"}
+          </button>
         </div>
       </header>
 
-      <section className="workspace" aria-label="워크플로 데모">
-        <div className="security-strip" aria-label="Fixture mode 상태">
-          <ul>
-            {SECURITY_LABELS.map((label, index) => (
-              <li key={label}>
-                <StatusDot state={index === 0 || index === 4 ? "ready" : "offline"} />
-                <strong>{label}</strong>
-              </li>
-            ))}
-          </ul>
+      <div className="demo-content">
+        <SecurityDisclosure />
+        <p className="demo-live-region" aria-live="polite" role="status">{liveMessage}</p>
+
+        {stage === "license" && (
+          <LicenseStage
+            walletState={walletState}
+            licenseState={licenseState}
+            onLicense={handleLicense}
+          />
+        )}
+        {stage === "execution" && (
+          <ExecutionStage
+            query={query}
+            runState={runState}
+            queryInputRef={queryInputRef}
+            onQueryChange={setQuery}
+            onRun={handleRun}
+          />
+        )}
+        {stage === "report" && (
+          <ReportStage
+            onReceiptOpen={() => setReceiptOpen(true)}
+            receiptTriggerRef={receiptTriggerRef}
+          />
+        )}
+
+        <div className="demo-footer-controls">
+          <span>Presentation preview · no wallet, purchase, execution, or receipt transaction is live.</span>
+          <button className="demo-reset-button" type="button" onClick={resetDemo}>Reset demo</button>
         </div>
+      </div>
 
-        <aside className="asset-panel">
-          <div className="asset-heading">
-            <span className="section-label">FEATURED ASSET</span>
-            <span className="edition">01 / 01</span>
-          </div>
-          <div className="asset-visual" aria-hidden="true">
-            <div className="signal signal--one" />
-            <div className="signal signal--two" />
-            <div className="signal signal--three" />
-            <span className="asset-monogram">GN</span>
-            <span className="asset-version">V1.0</span>
-          </div>
-          <div className="asset-title-row">
-            <div>
-              <p>MONITOR · KOREAN / SOUTH KOREA</p>
-              <h2>Google News<br />RSS Monitor</h2>
-            </div>
-            <span className="verified">✓</span>
-          </div>
-          <dl className="asset-data">
-            <FieldRow label="Creator" value="AIWF Demo Studio" />
-            <FieldRow label="Price" value="0.10 Testnet SUI · display only" />
-            <FieldRow label="Workflow type" value="google_news_rss/v1" />
-            <FieldRow label="Root ID" value="Not published" muted />
-            <FieldRow label="Release ID" value="Not published" muted />
-            <FieldRow label="Walrus Blob ID" value="Not published" muted />
-            <FieldRow label="Public manifest hash" value="Not published" muted />
-          </dl>
-        </aside>
-
-        <div className="flow-panel">
-          <div className="flow-header">
-            <div>
-              <span className="section-label">SIMULATED BUYER JOURNEY</span>
-              <h2>Run the asset</h2>
-            </div>
-            <span className="flow-mode">Fixture mode · no network calls</span>
-          </div>
-
-          <nav className="stepper" aria-label="데모 진행 단계">
-            {FLOW_STEPS.map((step) => {
-              const stepComplete =
-                (step.key === "wallet" && walletReady) ||
-                (step.key === "license" && licenseReady) ||
-                (step.key === "run" && runReady) ||
-                (step.key === "receipt" && receiptReady);
-              return (
-                <div className={`step ${activeStep === step.key ? "step--active" : ""} ${stepComplete ? "step--complete" : ""}`} key={step.key}>
-                  <span>{stepComplete ? "✓" : step.eyebrow}</span>
-                  <strong>{step.label}</strong>
-                </div>
-              );
-            })}
-          </nav>
-
-          <div className="action-grid">
-            <article className={`action-card ${activeStep === "wallet" ? "action-card--active" : ""}`}>
-              <div className="card-index"><span>01</span><p>WALLET</p></div>
-              <div className="card-body">
-                <div className="card-title-line"><h3>Presentation wallet</h3><StatusDot state={walletReady ? "ready" : "waiting"} /></div>
-                <p>실제 지갑 SDK 없이 연결 상태만 시뮬레이션합니다. 서명 요청이나 체인 읽기는 발생하지 않습니다.</p>
-                <dl className="mini-data">
-                  <FieldRow label="Network guard" value="Sui Testnet · demo label" />
-                  <FieldRow label="Current address" value={walletReady ? "Demo session · no address" : "Not connected"} muted />
-                </dl>
-                <button className="primary-button" type="button" disabled={walletState !== "idle"} onClick={simulateWallet}>
-                  {walletState === "pending" ? "연결 상태 준비 중…" : walletReady ? "데모 지갑 준비됨" : "지갑 연결 시뮬레이션"}
-                  {walletState === "idle" && <ArrowIcon />}
-                </button>
-              </div>
-            </article>
-
-            <article className={`action-card ${activeStep === "license" ? "action-card--active" : ""}`}>
-              <div className="card-index"><span>02</span><p>LICENSE</p></div>
-              <div className="card-body">
-                <div className="card-title-line"><h3>LicensePass</h3><StatusDot state={licenseReady ? "ready" : "waiting"} /></div>
-                <p>릴리스 1.0.0의 무제한 실행 라이선스 상태를 로컬 UI에서만 전환합니다.</p>
-                <dl className="mini-data">
-                  <FieldRow label="Detected pass" value={licenseReady ? "Fixture-ready · not on-chain" : "None"} muted={!licenseReady} />
-                  <FieldRow label="License object ID" value="Not published" muted />
-                  <FieldRow label="Purchase transaction" value="Not published" muted />
-                </dl>
-                <button className="primary-button" type="button" disabled={!walletReady || licenseState !== "idle"} onClick={simulateLicense}>
-                  {licenseState === "pending" ? "라이선스 단계 처리 중…" : licenseReady ? "라이선스 데모 준비됨" : "라이선스 구매 시뮬레이션"}
-                  {walletReady && licenseState === "idle" && <ArrowIcon />}
-                </button>
-              </div>
-            </article>
-          </div>
-
-          <article className={`execution-card ${activeStep === "run" ? "execution-card--active" : ""}`}>
-            <div className="execution-copy">
-              <span className="section-label">03 / EXECUTION</span>
-              <h3>What should we monitor?</h3>
-              <p>입력값은 브라우저 상태에만 머물며, 아래 결과는 미리 저장한 한국어 뉴스 fixture입니다.</p>
-            </div>
-            <div className="query-control">
-              <label htmlFor="query">Search query</label>
-              <div className="query-input-wrap">
-                <input
-                  id="query"
-                  value={query}
-                  maxLength={80}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    if (runState === "complete") {
-                      setRunState("idle");
-                      setReceiptState("idle");
-                    }
-                  }}
-                  placeholder="예: 생성형 AI 정책"
-                  disabled={!licenseReady || runState === "pending"}
-                />
-                <button type="button" onClick={simulateRun} disabled={!licenseReady || !query.trim() || runState === "pending"} aria-label="워크플로 실행 시뮬레이션">
-                  {runState === "pending" ? <span className="spinner" aria-hidden="true" /> : <ArrowIcon />}
-                </button>
-              </div>
-              <div className="execution-status" aria-live="polite">
-                <span><StatusDot state={runState === "pending" ? "waiting" : runReady ? "ready" : "offline"} />Challenge: {runState === "pending" ? "simulating" : runReady ? "fixture accepted" : "not requested"}</span>
-                <span>Signing: {runReady ? "skipped in Fixture mode" : "not requested"}</span>
-              </div>
-              <div className="trace-strip">
-                <span>Execution trace</span>
-                <strong>{runState === "pending" ? "Fixture loader → normalizing…" : runReady ? "Fixture loader → normalize → latest-first" : "Awaiting simulated run"}</strong>
-                <span>Typed error: None</span>
-              </div>
-            </div>
-          </article>
-
-          <section className={`results-section ${runReady ? "results-section--visible" : ""}`} aria-labelledby="results-title" aria-live="polite">
-            <div className="results-heading">
-              <div>
-                <span className="section-label">FIXTURE OUTPUT · LATEST FIRST</span>
-                <h2 id="results-title">Signal report</h2>
-              </div>
-              <div className="result-count"><strong>{runReady ? FIXTURE_RESULTS.length : "—"}</strong><span>RESULTS</span></div>
-            </div>
-
-            {!runReady ? (
-              <div className="empty-results">
-                <span>03</span>
-                <p>{licenseReady ? "검색어를 입력하고 실행하면 fixture 결과가 여기에 표시됩니다." : "Wallet → License 단계를 완료하면 실행할 수 있습니다."}</p>
-              </div>
-            ) : (
-              <>
-                <div className="fixture-callout">
-                  <strong>Fixture mode</strong>
-                  <span>실시간 Google News 응답이 아닌 발표용 고정 데이터입니다.</span>
-                </div>
-                <ol className="news-list">
-                  {FIXTURE_RESULTS.map((item, index) => (
-                    <li key={item.id}>
-                      <span className="news-index">{String(index + 1).padStart(2, "0")}</span>
-                      <div className="news-main">
-                        <div className="news-meta"><span>{item.source}</span><time>{item.publishedAt}</time><i>{item.accent}</i></div>
-                        <h3>{item.title}</h3>
-                        <p title={item.url}>{item.url}</p>
-                        <span className="url-note">Fixture Google News URL · external navigation disabled</span>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-                <dl className="hash-row">
-                  <FieldRow label="Input hash" value="Not generated · Fixture mode" muted />
-                  <FieldRow label="Output hash" value="Not generated · Fixture mode" muted />
-                </dl>
-              </>
-            )}
-          </section>
-
-          <section className={`receipt-section ${runReady ? "receipt-section--ready" : ""}`} aria-labelledby="receipt-title">
-            <div className="receipt-heading">
-              <span className="receipt-number">04</span>
-              <div>
-                <span className="section-label">LOCAL PREVIEW</span>
-                <h2 id="receipt-title">Execution receipt</h2>
-              </div>
-            </div>
-            <div className="receipt-grid">
-              <div className="payload-preview">
-                <span>SIGNED PAYLOAD PREVIEW · NOT SIGNED</span>
-                <pre>{`{
-  "workflowType": "google_news_rss/v1",
-  "release": "1.0.0",
-  "mode": "fixture",
-  "resultCount": ${runReady ? FIXTURE_RESULTS.length : "null"}
-}`}</pre>
-              </div>
-              <div className="receipt-action">
-                <dl className="mini-data">
-                  <FieldRow label="Executor key fingerprint" value="Unavailable · local demo key not exposed" muted />
-                  <FieldRow label="Receipt object ID" value="Not published" muted />
-                  <FieldRow label="Transaction digest" value="Not published" muted />
-                  <FieldRow label="Explorer link" value="Unavailable · nothing submitted" muted />
-                </dl>
-                <button className="primary-button primary-button--light" type="button" disabled={!runReady || receiptState !== "idle"} onClick={simulateReceipt}>
-                  {receiptState === "pending" ? "영수증 단계 처리 중…" : receiptReady ? "기록 시뮬레이션 완료" : "영수증 기록 시뮬레이션"}
-                  {runReady && receiptState === "idle" && <ArrowIcon />}
-                </button>
-                <p className="receipt-state" aria-live="polite">
-                  {receiptReady ? "로컬 상태만 갱신했습니다. Sui 트랜잭션은 제출되지 않았습니다." : "Fixture mode에서는 온체인 영수증을 생성하지 않습니다."}
-                </p>
-              </div>
-            </div>
-          </section>
-        </div>
-      </section>
-
-      <footer>
-        <div className="footer-brand">WORKFLOW<span>/MARKET</span></div>
-        <p>Presentation preview · No wallet, license, Walrus, Sui object, or receipt transaction is live.</p>
-        <span>Fixture mode</span>
-      </footer>
+      <ReceiptModal
+        open={receiptOpen}
+        closeButtonRef={receiptCloseButtonRef}
+        onClose={() => setReceiptOpen(false)}
+      />
     </main>
   );
 }
