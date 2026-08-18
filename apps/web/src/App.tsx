@@ -143,59 +143,29 @@ function DemoPage() {
   return (
     <main>
       <header className="topbar">
-        <a className="brand" href="/" aria-label="AI Workflow Marketplace 소개로 돌아가기">
+        <a className="brand" href="/" aria-label="Workflow Market 홈">
           <span className="brand-mark"><SparkIcon /></span>
           <span>WORKFLOW<span className="brand-accent">/MARKET</span></span>
         </a>
         <div className="topbar-actions">
           <span className="fixture-badge"><StatusDot state="ready" />Fixture mode</span>
-          <a className="topbar-link" href="/">← 소개</a>
-          <button className="text-button" type="button" onClick={resetDemo}>데모 초기화</button>
+          <button className="text-button" type="button" onClick={resetDemo}>초기화</button>
+          <a className="topbar-link" href="/">← 랜딩</a>
         </div>
       </header>
 
-      <section className="hero" id="overview">
-        <div className="hero-copy">
-          <p className="kicker"><span>CURATED WORKFLOW · 01</span><span>LOCAL PRESENTATION BUILD</span></p>
-          <h1>Discover the signal.<br /><em>Keep the workflow.</em></h1>
-          <p className="hero-description">
-            뉴스 검색을 반복 가능한 디지털 에셋으로. 한국어 Google News RSS를 정규화하는
-            단일 워크플로의 구매부터 실행, 영수증까지 한 화면에서 미리 봅니다.
-          </p>
-          <div className="hero-meta" aria-label="워크플로 핵심 정보">
-            <div><span>TYPE</span><strong>google_news_rss/v1</strong></div>
-            <div><span>RELEASE</span><strong>1.0.0</strong></div>
-            <div><span>RESULT WINDOW</span><strong>Latest 24 hours</strong></div>
-          </div>
-        </div>
-
-        <aside className="hero-note" aria-label="Fixture mode 안내">
-          <span className="note-index">DEMO / 001</span>
-          <div className="note-orbit" aria-hidden="true"><span /></div>
-          <h2>Fixture mode</h2>
-          <p>화면과 진행 흐름을 위한 로컬 프리뷰입니다. 실시간 Google News 조회가 아닙니다.</p>
-          <div className="note-state"><StatusDot state="offline" /><span>NO LIVE SERVICES CONNECTED</span></div>
-        </aside>
-      </section>
-
-      <section className="disclosure" aria-labelledby="security-title">
-        <div className="disclosure-heading">
-          <p>TRUST BOUNDARY</p>
-          <h2 id="security-title">Demo security disclosure</h2>
-          <span>로컬 서버는 평문을 확인할 수 있는 데모 경계입니다.</span>
-        </div>
-        <ul className="security-grid">
-          {SECURITY_LABELS.map((label, index) => (
-            <li key={label}>
-              <span className="security-number">0{index + 1}</span>
-              <StatusDot state={index === 0 || index === 4 ? "ready" : "offline"} />
-              <strong>{label}</strong>
-            </li>
-          ))}
-        </ul>
-      </section>
-
       <section className="workspace" aria-label="워크플로 데모">
+        <div className="security-strip" aria-label="Fixture mode 상태">
+          <ul>
+            {SECURITY_LABELS.map((label, index) => (
+              <li key={label}>
+                <StatusDot state={index === 0 || index === 4 ? "ready" : "offline"} />
+                <strong>{label}</strong>
+              </li>
+            ))}
+          </ul>
+        </div>
+
         <aside className="asset-panel">
           <div className="asset-heading">
             <span className="section-label">FEATURED ASSET</span>
@@ -215,7 +185,6 @@ function DemoPage() {
             </div>
             <span className="verified">✓</span>
           </div>
-          <p className="asset-summary">검색어 하나로 최신 24시간 한국어 뉴스를 최대 10건까지 정규화합니다.</p>
           <dl className="asset-data">
             <FieldRow label="Creator" value="AIWF Demo Studio" />
             <FieldRow label="Price" value="0.10 Testnet SUI · display only" />
