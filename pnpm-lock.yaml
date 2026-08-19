@@ -44,12 +44,30 @@ importers:
 
   apps/web:
     dependencies:
+      '@aiwf/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@aiwf/workflow-google-news':
+        specifier: workspace:*
+        version: link:../../packages/workflow-google-news
+      '@mysten/dapp-kit-core':
+        specifier: 1.6.18
+        version: 1.6.18(@mysten/sui@2.26.2(typescript@7.0.2))(typescript@7.0.2)
+      '@mysten/dapp-kit-react':
+        specifier: 2.1.20
+        version: 2.1.20(@mysten/sui@2.26.2(typescript@7.0.2))(@types/react@19.2.18)(react@19.2.8)(typescript@7.0.2)
+      '@mysten/sui':
+        specifier: 2.26.2
+        version: 2.26.2(typescript@7.0.2)
       react:
         specifier: 19.2.8
         version: 19.2.8
       react-dom:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
     devDependencies:
       '@types/react':
         specifier: 19.2.18
@@ -278,6 +296,15 @@ packages:
   '@fastify/proxy-addr@5.1.0':
     resolution: {integrity: sha512-INS+6gh91cLUjB+PVHfu1UqcB76Sqtpyp7bnL+FYojhjygvOPA9ctiD/JDKsyD9Xgu4hUhCSJBPig/w7duNajw==}
 
+  '@floating-ui/core@1.8.0':
+    resolution: {integrity: sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ==}
+
+  '@floating-ui/dom@1.8.0':
+    resolution: {integrity: sha512-yXSrzeHZBTZadLOlfyhCkJHNeLJnHRnRInwdZ40L7ZiaAtrBwoYlsDrX3v5zB1Utk7CLfzcOVnVVWoXEky7Ceg==}
+
+  '@floating-ui/utils@0.2.12':
+    resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
+
   '@gql.tada/cli-utils@1.9.3':
     resolution: {integrity: sha512-P1TiXErpJwIi73sei5fzwGA/SOeCaIHFWFR4RdZPLwqxZzQN0T6MAUivzXBgKCORL67rvYnLaaPoWeqWq/61ug==}
     peerDependencies:
@@ -306,8 +333,41 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
+  '@lit-labs/scoped-registry-mixin@1.0.4':
+    resolution: {integrity: sha512-gYeotwRwluD7RsFgU0eP48WgBMg6fIF5RXzbrjs/gwsPiJiFtal90s+x/LHIHqQ2VkubsyP+m+QAfgmOnsNhUg==}
+
+  '@lit-labs/ssr-dom-shim@1.6.0':
+    resolution: {integrity: sha512-VHb0ALPMTlgKjM6yIxxoQNnpKyUKLD04VzeQdsiXkMqkvYlAHxq9glGLmgbb889/1GsohSOAjvQYoiBppXFqrQ==}
+
+  '@lit/react@1.0.8':
+    resolution: {integrity: sha512-p2+YcF+JE67SRX3mMlJ1TKCSTsgyOVdAwd/nxp3NuV1+Cb6MWALbN6nT7Ld4tpmYofcE5kcaSY1YBB9erY+6fw==}
+    peerDependencies:
+      '@types/react': 17 || 18 || 19
+
+  '@lit/reactive-element@2.1.2':
+    resolution: {integrity: sha512-pbCDiVMnne1lYUIaYNN5wrwQXDtHaYtg7YEFPeW+hws6U47WeFvISGUWekPGKWOP1ygrs0ef0o1VJMk1exos5A==}
+
+  '@lit/task@1.0.3':
+    resolution: {integrity: sha512-1gJGJl8WON+2j0y9xfcD+XsS1rvcy3XDgsIhcdUW++yTR8ESjZW6o7dn8M8a4SZM8NnJe6ynS2cKWwsbfLOurg==}
+
   '@mysten/bcs@2.1.1':
     resolution: {integrity: sha512-IDYomoQ6+yvOIClBHmNdScttv+h/HbGGHLEdUmGQptR3YdqqLM5vJD28wf2QP/UXCEBkCoG7TOT6pFNw8ExYmA==}
+
+  '@mysten/dapp-kit-core@1.6.18':
+    resolution: {integrity: sha512-8sQqlJzKnnMjIITQG/7tKJWpqE2mmSmz8BL9/GfAuW+jpXy5IFBtd2HcHbcRfmWNXNNZHIZ8KiX8ro/8mhBqmQ==}
+    peerDependencies:
+      '@mysten/sui': ^2.26.2
+
+  '@mysten/dapp-kit-react@2.1.20':
+    resolution: {integrity: sha512-cHhVzhTfWRrXvHV+OLdc+rQZfFNFRLpVqGeQxl8f2pmc6+23P1+nQdo5EsDxMcyAx6uD1WdeetxI+DSbgOEI8w==}
+    peerDependencies:
+      '@types/react': '>=17.0.0'
+      react: '>=17.0.0'
+
+  '@mysten/slush-wallet@1.1.18':
+    resolution: {integrity: sha512-TSe6kw7qCXpTxQjcQSnx7cG1g+WJiez2walEfUoR82sPkJQ7WZaxckOSsrMBtCm7sCNyesFR4qU+hN/wEtnYng==}
+    peerDependencies:
+      '@mysten/sui': ^2.26.2
 
   '@mysten/sui@2.26.2':
     resolution: {integrity: sha512-G1ILAQ9HY98UJsLH2SAJv5DXuWNI3i7xBZBL77U6DW/MCoCISBj5HpeJ3xaSClXSTgHMbPyHDxs5XMhEAnKLAg==}
@@ -315,6 +375,27 @@ packages:
 
   '@mysten/utils@0.4.1':
     resolution: {integrity: sha512-gffLJ84CbqG/CcOPuVlwXIRu37tFn0BtUx7CQtbLwJzWjUE7FU2Gq8BXWjzxImnvufcyLTaNWtCPG6wq22Zhog==}
+
+  '@mysten/wallet-standard@0.21.18':
+    resolution: {integrity: sha512-4ZQrn+J2JcZfn5Nzw6+vHyUBTnpn0CaitCsbCaITyFme0IU1kdqbRqZbGXDqu9doHyeKMGBoMpvQoEyH2ljYFQ==}
+    peerDependencies:
+      '@mysten/sui': ^2.26.2
+
+  '@mysten/window-wallet-core@0.2.2':
+    resolution: {integrity: sha512-cjhtlTxqKWIYdikBAzCVkcpig0LiD0UDQgqKq5P80/qt5d36hOFnx32lkpbWa6VWIU7eSdLnvIF01cJEP8EXvA==}
+
+  '@nanostores/lit@0.2.3':
+    resolution: {integrity: sha512-hIUKzdNrgKXkXCsppzQxmYYYMTn96cncijWhzcYZKn3Yimqj7B6YK94qN/KObjBNEe0xR3JLgMo96ew5fVtW2w==}
+    peerDependencies:
+      lit: ^2.6.0 || ^3.0.0
+      nanostores: '>=0.7 < 1.0.0 || ^1.0.0'
+
+  '@nanostores/react@1.1.0':
+    resolution: {integrity: sha512-MbH35fjhcf7LAubYX5vhOChYUfTLzNLqH/mBGLVsHkcvjy0F8crO1WQwdmQ2xKbAmtpalDa2zBt3Hlg5kqr8iw==}
+    engines: {node: ^20.0.0 || >=22.0.0}
+    peerDependencies:
+      nanostores: ^1.2.0
+      react: '>=18.0.0'
 
   '@noble/curves@2.3.0':
     resolution: {integrity: sha512-v7cY+4oWYPQszRj6ZFGzTVL7uP2TaLo1xMhWHzYC5wj0ZhOXQ5x+sBre8rF3hi8cAoi0bh1qXoovoOkdFtvqEg==}
@@ -466,6 +547,9 @@ packages:
 
   '@types/react@19.2.18':
     resolution: {integrity: sha512-AnzbBERsrLKtk2XSfTbYRLjQPdy116Sty4q+T+Bp3IC4l6jNBvreVPAHmpq9qhXQM7CXZPjLVmGMw9sy+hxQ3w==}
+
+  '@types/trusted-types@2.0.7':
+    resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
   '@typescript/typescript-aix-ppc64@7.0.2':
     resolution: {integrity: sha512-MTKKkWB7p/0E9xi1d1tHtZ5PiLkGEMIq88pK2CubZjOsLtYTLqhgIgi6zepFa+9GHZ6h05NMCkQxGKiPXMxXtQ==}
@@ -629,6 +713,54 @@ packages:
   '@vitest/utils@4.1.10':
     resolution: {integrity: sha512-fy9am/HWxbaGt/Sawrp90vt6Y6jQwf1RX77cz3uwoJwJVMli/e1IEwRPnMNJ7vKfPTwo0diXifkpPvwH9v7nGA==}
 
+  '@wallet-standard/app@1.1.1':
+    resolution: {integrity: sha512-WDGwoByhP5gwHH01r5EaLgQdLVkACPCdOMQhmhn8rsm10h/siSgTorShzBxrn0ExSPof+Lu+C3TfgqBrPa1xoQ==}
+    engines: {node: '>=22'}
+
+  '@wallet-standard/base@1.1.1':
+    resolution: {integrity: sha512-gggIHTtxicF9XFMQ12DkfS6NAG92Ak795JeSA7f2whAQ6Y3AkMWWuCMxSZXG2NIPN42kEaZSNVjqMsJRaJRxMQ==}
+    engines: {node: '>=22'}
+
+  '@wallet-standard/core@1.1.2':
+    resolution: {integrity: sha512-QcVLGDkFtsWjTpkej2jx4FyP2cu+qOAW/lVnvlWjyhCkSEje6z+vEKURV5v+7L6IXjbze5pyFBe24yrPyoUuyw==}
+    engines: {node: '>=22'}
+
+  '@wallet-standard/errors@0.1.2':
+    resolution: {integrity: sha512-oEzKUqJefKby6wcIvaJgrSEe/uNn/rnqkJ0P/85K+h0i5Tdo9E3L22VWq/j5K1e8hHMnZd6LgaIr8m/Wn7X/Ng==}
+    engines: {node: '>=22'}
+    hasBin: true
+
+  '@wallet-standard/features@1.1.1':
+    resolution: {integrity: sha512-aCWYmVeSCGViyEU5k7GMoW8zxE4Gs+C1s1Pp2XLesvSNlnZ4PMES9HUnTB3hl0b3RVj7C61yze3IWyrncqg4MA==}
+    engines: {node: '>=22'}
+
+  '@wallet-standard/ui-compare@1.0.3':
+    resolution: {integrity: sha512-AXst7auT0+5eIaj8MyUXZLopKWN2HwqiQNTVgcF80u9X9a/fsiiHi8tlY0dc/y/AIOM654cMpvpJqsJEZNV9pg==}
+    engines: {node: '>=22'}
+
+  '@wallet-standard/ui-core@1.0.1':
+    resolution: {integrity: sha512-LFmsSjMw3wXfZgZ5eAFGdIJ1512dGTWIEeoPDKsc6mHf7cMU18tvtpe4bOL76lT9Qh1Gc+4+kdtwSkTuJ9L+jw==}
+    engines: {node: '>=22'}
+
+  '@wallet-standard/ui-features@1.0.3':
+    resolution: {integrity: sha512-3YgxBoDXZCsaSyCNMph7i7G57ap+C6Y+l3HmTEQKigzTGxPUJ2mvqpTPwdj8D2cVkTKBzu8/78wweV7I9eG1rA==}
+    engines: {node: '>=22'}
+
+  '@wallet-standard/ui-registry@1.1.1':
+    resolution: {integrity: sha512-vJDZ/K2xwIqkxiyWUhPb6s62bTMRbYPj0MCJa9lYsqHGZgMbKBI3ZjLJK5MzWow2VxoOfuR77HuJng+HDWt1hA==}
+    engines: {node: '>=22'}
+
+  '@wallet-standard/ui@1.0.3':
+    resolution: {integrity: sha512-H2QJTR5m3PeHi06q8kj4TiRf3U+fEe6W+jw+hztPkjTRBVDeCIrwRhbdgAyI8yaGc7dBhzGYqhUQ9ecYj7x0rQ==}
+    engines: {node: '>=22'}
+
+  '@wallet-standard/wallet@1.1.1':
+    resolution: {integrity: sha512-8WiRPaKk/wNNRZhB2eVhpR/JW7/aqTCMoZhgVUCujuzDmxxmGvsosMxdCG4NAdYkoyozAHCX8/xLtlWUn5mNdQ==}
+    engines: {node: '>=22'}
+
+  '@webcomponents/scoped-custom-element-registry@0.0.10':
+    resolution: {integrity: sha512-wP4LF28aysE2Pq3NQRNQxko7Q0vOOwcoOSMg8FFI4S6z76UuXkYIc5ndC31dJMwso1/vSteL75LW2CEKedAJbA==}
+
   abstract-logging@2.0.1:
     resolution: {integrity: sha512-2BjRTZxTPvheOvGbBslFSYOUkr+SjPtOnrLP33f+VIWLzezQpZcqVg7ja3L4dBXmzzgwT+a029jRx5PCi3JuiA==}
 
@@ -659,6 +791,14 @@ packages:
 
   chai@6.2.2:
     resolution: {integrity: sha512-NUPRluOfOiTKBKvWPtSD4PhFvWCqOi0BGStNWs57X9js7XGTprSmFoz5F0tWhR4WPjNeR9jXqdC7/UpSJTnlRg==}
+    engines: {node: '>=18'}
+
+  chalk@5.6.2:
+    resolution: {integrity: sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA==}
+    engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
+
+  commander@13.1.0:
+    resolution: {integrity: sha512-/rFeCpNJQbhSZjGVwO9RFV3xPqbnERS8MmIQzCtD/zl6gpJuV/bMLuN92oG3F7d8oDEHHRrujSXNUr8fpjntKw==}
     engines: {node: '>=18'}
 
   convert-source-map@2.0.0:
@@ -763,6 +903,9 @@ packages:
   is-unsafe@2.0.0:
     resolution: {integrity: sha512-2LdV822R+wmI86unXA93WCFpL6g+av8ynWk0nrHyJqGop5VoocYsSLFgN8jrfalT6iGeLNM4KXuVSsULP53kEA==}
 
+  jose@6.2.9:
+    resolution: {integrity: sha512-XrchZOFZUl/T3vTwRe8XK+cJrGtMF4th1ARnDfwbBXFKThGhlsxEE4Zu03AD/bjJSt/9jT/mxrOCkJWOg77aPA==}
+
   json-schema-ref-resolver@3.0.0:
     resolution: {integrity: sha512-hOrZIVL5jyYFjzk7+y7n5JDzGlU8rfWDuYyHwGa2WA8/pcmMHezp2xsVwxrebD/Q9t8Nc5DboieySDpCp4WG4A==}
 
@@ -846,6 +989,15 @@ packages:
     resolution: {integrity: sha512-WkUDrojuJs0xkgGf2udWxa3yGBRxPtxUkB79i6aCZLRgc7PM8fZe9TosfPDcvEpQZbuFASnHYmRLBLUbmLOIIA==}
     engines: {node: '>= 12.0.0'}
 
+  lit-element@4.2.2:
+    resolution: {integrity: sha512-aFKhNToWxoyhkNDmWZwEva2SlQia+jfG0fjIWV//YeTaWrVnOxD89dPKfigCUspXFmjzOEUQpOkejH5Ly6sG0w==}
+
+  lit-html@3.3.3:
+    resolution: {integrity: sha512-el8M6jK2o3RXBnrSHX3ZKrsN8zEV63pSExTO1wYJz7QndGYZ8353e2a5PPX+qHe2aGayfnchQmkAojaWAREOIA==}
+
+  lit@3.3.3:
+    resolution: {integrity: sha512-fycuvZg/hkpozL00lm1pEJH5nN/lr9ZXd6mJI2HSN4+Bzc+LDNdEApJ6HFbPkdFNHLvOplIIuJvxkS4XUxqirw==}
+
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
 
@@ -853,6 +1005,10 @@ packages:
     resolution: {integrity: sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
+
+  nanostores@1.5.1:
+    resolution: {integrity: sha512-DNIX+HyFpo14fKGe0NsX9/aPzdKGiSZwX5xEMpDwQrDdo2iTiUYunOCCQLYwJrziKVe8ZOtVvcv0dEVI8lMx2g==}
+    engines: {node: ^20.0.0 || >=22.0.0}
 
   obug@2.1.4:
     resolution: {integrity: sha512-4a+OsYv9UktOJKE+l1A4OufDgdRF9PifWj+tJnHURo/P+WOxpG4GzUFL9qCalmWauao6ogiG+QvnCovwPoyAWA==}
@@ -1241,6 +1397,17 @@ snapshots:
       '@fastify/forwarded': 3.0.2
       ipaddr.js: 2.5.0
 
+  '@floating-ui/core@1.8.0':
+    dependencies:
+      '@floating-ui/utils': 0.2.12
+
+  '@floating-ui/dom@1.8.0':
+    dependencies:
+      '@floating-ui/core': 1.8.0
+      '@floating-ui/utils': 0.2.12
+
+  '@floating-ui/utils@0.2.12': {}
+
   '@gql.tada/cli-utils@1.9.3(@0no-co/graphqlsp@1.17.4(graphql@17.0.2)(typescript@7.0.2))(graphql@17.0.2)(typescript@7.0.2)':
     dependencies:
       '@0no-co/graphqlsp': 1.17.4(graphql@17.0.2)(typescript@7.0.2)
@@ -1260,10 +1427,69 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
+  '@lit-labs/scoped-registry-mixin@1.0.4':
+    dependencies:
+      '@lit/reactive-element': 2.1.2
+      lit: 3.3.3
+
+  '@lit-labs/ssr-dom-shim@1.6.0': {}
+
+  '@lit/react@1.0.8(@types/react@19.2.18)':
+    dependencies:
+      '@types/react': 19.2.18
+
+  '@lit/reactive-element@2.1.2':
+    dependencies:
+      '@lit-labs/ssr-dom-shim': 1.6.0
+
+  '@lit/task@1.0.3':
+    dependencies:
+      '@lit/reactive-element': 2.1.2
+
   '@mysten/bcs@2.1.1':
     dependencies:
       '@mysten/utils': 0.4.1
       '@scure/base': 2.3.0
+
+  '@mysten/dapp-kit-core@1.6.18(@mysten/sui@2.26.2(typescript@7.0.2))(typescript@7.0.2)':
+    dependencies:
+      '@floating-ui/dom': 1.8.0
+      '@lit-labs/scoped-registry-mixin': 1.0.4
+      '@lit/task': 1.0.3
+      '@mysten/slush-wallet': 1.1.18(@mysten/sui@2.26.2(typescript@7.0.2))(typescript@7.0.2)
+      '@mysten/sui': 2.26.2(typescript@7.0.2)
+      '@mysten/utils': 0.4.1
+      '@mysten/wallet-standard': 0.21.18(@mysten/sui@2.26.2(typescript@7.0.2))
+      '@nanostores/lit': 0.2.3(lit@3.3.3)(nanostores@1.5.1)
+      '@wallet-standard/ui': 1.0.3
+      '@wallet-standard/ui-registry': 1.1.1
+      '@webcomponents/scoped-custom-element-registry': 0.0.10
+      lit: 3.3.3
+      nanostores: 1.5.1
+    transitivePeerDependencies:
+      - typescript
+
+  '@mysten/dapp-kit-react@2.1.20(@mysten/sui@2.26.2(typescript@7.0.2))(@types/react@19.2.18)(react@19.2.8)(typescript@7.0.2)':
+    dependencies:
+      '@lit/react': 1.0.8(@types/react@19.2.18)
+      '@mysten/dapp-kit-core': 1.6.18(@mysten/sui@2.26.2(typescript@7.0.2))(typescript@7.0.2)
+      '@nanostores/react': 1.1.0(nanostores@1.5.1)(react@19.2.8)
+      '@types/react': 19.2.18
+      nanostores: 1.5.1
+      react: 19.2.8
+    transitivePeerDependencies:
+      - '@mysten/sui'
+      - typescript
+
+  '@mysten/slush-wallet@1.1.18(@mysten/sui@2.26.2(typescript@7.0.2))(typescript@7.0.2)':
+    dependencies:
+      '@mysten/sui': 2.26.2(typescript@7.0.2)
+      '@mysten/utils': 0.4.1
+      '@mysten/wallet-standard': 0.21.18(@mysten/sui@2.26.2(typescript@7.0.2))
+      '@mysten/window-wallet-core': 0.2.2(typescript@7.0.2)
+      valibot: 1.4.2(typescript@7.0.2)
+    transitivePeerDependencies:
+      - typescript
 
   '@mysten/sui@2.26.2(typescript@7.0.2)':
     dependencies:
@@ -1290,6 +1516,29 @@ snapshots:
   '@mysten/utils@0.4.1':
     dependencies:
       '@scure/base': 2.3.0
+
+  '@mysten/wallet-standard@0.21.18(@mysten/sui@2.26.2(typescript@7.0.2))':
+    dependencies:
+      '@mysten/sui': 2.26.2(typescript@7.0.2)
+      '@wallet-standard/core': 1.1.2
+
+  '@mysten/window-wallet-core@0.2.2(typescript@7.0.2)':
+    dependencies:
+      '@mysten/utils': 0.4.1
+      jose: 6.2.9
+      valibot: 1.4.2(typescript@7.0.2)
+    transitivePeerDependencies:
+      - typescript
+
+  '@nanostores/lit@0.2.3(lit@3.3.3)(nanostores@1.5.1)':
+    dependencies:
+      lit: 3.3.3
+      nanostores: 1.5.1
+
+  '@nanostores/react@1.1.0(nanostores@1.5.1)(react@19.2.8)':
+    dependencies:
+      nanostores: 1.5.1
+      react: 19.2.8
 
   '@noble/curves@2.3.0':
     dependencies:
@@ -1392,6 +1641,8 @@ snapshots:
   '@types/react@19.2.18':
     dependencies:
       csstype: 3.2.3
+
+  '@types/trusted-types@2.0.7': {}
 
   '@typescript/typescript-aix-ppc64@7.0.2':
     optional: true
@@ -1499,6 +1750,64 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.1
 
+  '@wallet-standard/app@1.1.1':
+    dependencies:
+      '@wallet-standard/base': 1.1.1
+
+  '@wallet-standard/base@1.1.1': {}
+
+  '@wallet-standard/core@1.1.2':
+    dependencies:
+      '@wallet-standard/app': 1.1.1
+      '@wallet-standard/base': 1.1.1
+      '@wallet-standard/errors': 0.1.2
+      '@wallet-standard/features': 1.1.1
+      '@wallet-standard/wallet': 1.1.1
+
+  '@wallet-standard/errors@0.1.2':
+    dependencies:
+      chalk: 5.6.2
+      commander: 13.1.0
+
+  '@wallet-standard/features@1.1.1':
+    dependencies:
+      '@wallet-standard/base': 1.1.1
+
+  '@wallet-standard/ui-compare@1.0.3':
+    dependencies:
+      '@wallet-standard/base': 1.1.1
+      '@wallet-standard/ui-core': 1.0.1
+      '@wallet-standard/ui-registry': 1.1.1
+
+  '@wallet-standard/ui-core@1.0.1':
+    dependencies:
+      '@wallet-standard/base': 1.1.1
+
+  '@wallet-standard/ui-features@1.0.3':
+    dependencies:
+      '@wallet-standard/base': 1.1.1
+      '@wallet-standard/errors': 0.1.2
+      '@wallet-standard/ui-core': 1.0.1
+      '@wallet-standard/ui-registry': 1.1.1
+
+  '@wallet-standard/ui-registry@1.1.1':
+    dependencies:
+      '@wallet-standard/base': 1.1.1
+      '@wallet-standard/errors': 0.1.2
+      '@wallet-standard/ui-core': 1.0.1
+
+  '@wallet-standard/ui@1.0.3':
+    dependencies:
+      '@wallet-standard/ui-compare': 1.0.3
+      '@wallet-standard/ui-core': 1.0.1
+      '@wallet-standard/ui-features': 1.0.3
+
+  '@wallet-standard/wallet@1.1.1':
+    dependencies:
+      '@wallet-standard/base': 1.1.1
+
+  '@webcomponents/scoped-custom-element-registry@0.0.10': {}
+
   abstract-logging@2.0.1: {}
 
   ajv-formats@3.0.1(ajv@8.20.0):
@@ -1524,6 +1833,10 @@ snapshots:
       fastq: 1.20.1
 
   chai@6.2.2: {}
+
+  chalk@5.6.2: {}
+
+  commander@13.1.0: {}
 
   convert-source-map@2.0.0: {}
 
@@ -1662,6 +1975,8 @@ snapshots:
 
   is-unsafe@2.0.0: {}
 
+  jose@6.2.9: {}
+
   json-schema-ref-resolver@3.0.0:
     dependencies:
       dequal: 2.0.3
@@ -1723,11 +2038,29 @@ snapshots:
       lightningcss-win32-arm64-msvc: 1.33.0
       lightningcss-win32-x64-msvc: 1.33.0
 
+  lit-element@4.2.2:
+    dependencies:
+      '@lit-labs/ssr-dom-shim': 1.6.0
+      '@lit/reactive-element': 2.1.2
+      lit-html: 3.3.3
+
+  lit-html@3.3.3:
+    dependencies:
+      '@types/trusted-types': 2.0.7
+
+  lit@3.3.3:
+    dependencies:
+      '@lit/reactive-element': 2.1.2
+      lit-element: 4.2.2
+      lit-html: 3.3.3
+
   magic-string@0.30.21:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
   nanoid@3.3.18: {}
+
+  nanostores@1.5.1: {}
 
   obug@2.1.4: {}
 

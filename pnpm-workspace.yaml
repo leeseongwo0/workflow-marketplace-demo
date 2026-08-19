@@ -10,3 +10,8 @@ minimumReleaseAgeExclude:
   - '@mysten/sui@2.26.2'
   - '@mysten/utils@0.4.1'
   - fastify@5.12.1
+  - '@mysten/dapp-kit-core@1.6.18'
+  - '@mysten/dapp-kit-react@2.1.20'
+  - '@mysten/slush-wallet@1.1.18'
+  - '@mysten/wallet-standard@0.21.18'
+  - '@mysten/window-wallet-core@0.2.2'

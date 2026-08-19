@@ -59,8 +59,16 @@ Status: complete (2026-08-19). Verified offline with strict TypeScript, 159 exec
 
 ## Phase 5 — Web app
 
+Status: complete (2026-08-19). Verified offline with strict TypeScript, 56 deterministic web tests, 239 workspace tests, a production Vite build, the 159-test executor regression suite, and the 20-test Move regression suite. The live path is implemented but has not yet been exercised against real Testnet objects; that evidence belongs to Phase 6.
+
 - [x] Add a clearly labeled local fixture presentation preview with no live wallet or network calls
-- [ ] Implement the presentation UI, wallet/license flow, execution states, and receipt recording
+- [x] Gate live mode on a complete Testnet package/Marketplace/release configuration and reject partial or non-loopback configuration
+- [x] Integrate the Sui dApp Kit wallet button, exact-price license purchase, and exact owned `LicensePass` discovery
+- [x] Validate canonical challenge semantics before wallet signing and bind displayed query/results to independently recomputed hashes
+- [x] Verify receipt BCS, executor key, and raw Ed25519 signature before constructing `record_execution`
+- [x] Show transaction/object success only after the exact Testnet object is discoverable
+- [x] Implement the presentation UI, wallet/license flow, execution states, report, and receipt modal
+- [x] Pass read-only Sol security re-review with no remaining critical or major findings
 
 ## Phase 6 — Testnet end-to-end
 

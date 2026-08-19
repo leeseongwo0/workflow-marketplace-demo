@@ -6,11 +6,18 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@aiwf/shared": "workspace:*",
+    "@aiwf/workflow-google-news": "workspace:*",
+    "@mysten/dapp-kit-core": "1.6.18",
+    "@mysten/dapp-kit-react": "2.1.20",
+    "@mysten/sui": "2.26.2",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/react": "19.2.18",

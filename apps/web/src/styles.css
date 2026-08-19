@@ -2005,6 +2005,127 @@ footer > span {
   }
 }
 
+.live-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(121, 242, 189, 0.32);
+  border-radius: 999px;
+  color: var(--demo-mint);
+  background: rgba(121, 242, 189, 0.08);
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.live-mode-pill--error {
+  border-color: rgba(255, 151, 151, 0.36);
+  color: #ffb2b2;
+  background: rgba(255, 80, 80, 0.08);
+}
+
+.live-centered-card {
+  width: min(680px, calc(100% - 32px));
+  margin: clamp(60px, 12vh, 140px) auto;
+  padding: clamp(28px, 6vw, 56px);
+  border: 1px solid rgba(121, 242, 189, 0.2);
+  background: var(--demo-panel);
+}
+
+.live-centered-card h1 {
+  margin: 8px 0 18px;
+  font-size: clamp(2rem, 5vw, 3.7rem);
+  letter-spacing: -0.06em;
+}
+
+.live-centered-card > p:last-child {
+  color: #9aaba1;
+  line-height: 1.7;
+  word-break: keep-all;
+}
+
+.live-error {
+  width: min(100%, 760px);
+  padding: 12px 16px;
+  margin: 0 auto 12px;
+  border-left: 3px solid #ff8f8f;
+  color: #ffd4d4;
+  background: rgba(120, 25, 25, 0.26);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.live-demo-page .demo-facts a,
+.live-demo-page .demo-receipt-facts a,
+.live-inline-link {
+  color: inherit;
+  text-decoration-color: rgba(7, 16, 14, 0.35);
+  text-underline-offset: 3px;
+}
+
+.live-inline-link {
+  display: inline-block;
+  margin-top: 14px;
+  color: #456257;
+  font-size: 0.65rem;
+}
+
+.live-report-disclosure {
+  color: #33493f;
+}
+
+.live-empty {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  border: 1px dashed rgba(7, 16, 14, 0.22);
+  color: #66776e;
+}
+
+.live-demo-page .demo-news-list h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.live-demo-page .demo-news-list h2 a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.live-trace {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 22px 0;
+}
+
+.live-trace span {
+  padding: 6px 8px;
+  border: 1px solid rgba(7, 16, 14, 0.15);
+  color: #4c6157;
+  background: rgba(255, 255, 255, 0.24);
+  font-size: 0.54rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.live-demo-page .demo-modal .demo-primary-button {
+  margin-top: 24px;
+}
+
+@media (max-width: 560px) {
+  .live-mode-pill {
+    display: none;
+  }
+
+  .live-demo-page .demo-topbar-actions {
+    gap: 8px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

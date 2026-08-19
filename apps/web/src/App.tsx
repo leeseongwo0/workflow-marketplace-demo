@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { LandingPage } from "./LandingPage";
+import { LiveDemoPage } from "./LiveDemoPage";
+import { webConfig } from "./live/config";
 
 type AsyncState = "idle" | "pending" | "complete";
 type WalletState = AsyncState;
@@ -523,5 +525,8 @@ export function App() {
     document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute("content", description);
   }, [isDemoRoute]);
 
-  return isDemoRoute ? <DemoPage /> : <LandingPage />;
+  if (!isDemoRoute) return <LandingPage />;
+  return webConfig.mode === "fixture"
+    ? <DemoPage />
+    : <LiveDemoPage config={webConfig} />;
 }

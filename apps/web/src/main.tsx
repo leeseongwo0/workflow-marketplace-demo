@@ -1,7 +1,9 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { DAppKitProvider } from "@mysten/dapp-kit-react";
 
 import { App } from "./App";
+import { dAppKit } from "./live/dapp-kit";
 import "./styles.css";
 
 const root = document.getElementById("root");
@@ -12,6 +14,8 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <DAppKitProvider dAppKit={dAppKit}>
+      <App />
+    </DAppKitProvider>
   </StrictMode>,
 );
