@@ -47,7 +47,15 @@ Status: complete (2026-08-19). Verified offline with strict TypeScript, 121 dete
 
 ## Phase 4 — Local executor
 
-- [ ] Implement and integration-test challenge, license, bundle, execution, and receipt flows with fakes
+Status: complete (2026-08-19). Verified offline with strict TypeScript, 159 executor tests, 183 workspace tests, the web production build, and the 20-test Move regression suite. No live Sui, Walrus, or Google News call was used for this checkpoint.
+
+- [x] Freeze canonical Sui personal-message bytes and an expiring, atomically consumed in-memory challenge flow
+- [x] Verify exact configured-package LicensePass ownership/release binding and active shared WorkflowRelease BCS metadata
+- [x] Enforce license-before-key ordering, Walrus hash-before-decrypt, reconstructed AES-GCM AAD, and strict `google_news_rss/v1` dispatch
+- [x] Canonicalize result hashes and return independently verifiable Move-compatible raw Ed25519 receipt signatures
+- [x] Add a local-only Fastify API with exact CORS, secret-safe errors, bounded RSS loading, and Testnet-only configuration
+- [x] Pass deterministic wrong-wallet, expiry, replay, license, BCS, bundle-hash, RSS, API, and receipt integration tests with fakes
+- [x] Pass read-only Sol security re-review with no remaining critical or major findings
 
 ## Phase 5 — Web app
 

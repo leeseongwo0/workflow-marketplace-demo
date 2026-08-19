@@ -4,3 +4,9 @@ packages:
 
 allowBuilds:
   esbuild: true
+
+minimumReleaseAgeExclude:
+  - '@mysten/bcs@2.1.1'
+  - '@mysten/sui@2.26.2'
+  - '@mysten/utils@0.4.1'
+  - fastify@5.12.1

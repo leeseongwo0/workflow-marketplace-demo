@@ -4,12 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node --env-file-if-exists=../../.env --import tsx src/start.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
   },
   "dependencies": {
     "@aiwf/shared": "workspace:*",
     "@aiwf/workflow-google-news": "workspace:*",
+    "@fastify/cors": "11.3.0",
+    "@mysten/sui": "2.26.2",
+    "fastify": "5.12.1",
     "zod": "4.4.3"
   }
 }
