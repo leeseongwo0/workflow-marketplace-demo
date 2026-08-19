@@ -7,5 +7,6 @@ move/**/build/
 .env.*
 !.env.example
 data/local-keyring.json
+data/local-keyring.json.tmp-*
 *.log
 .DS_Store

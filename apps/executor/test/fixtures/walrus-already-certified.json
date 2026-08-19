@@ -1,0 +1,9 @@
+{
+  "alreadyCertified": {
+    "blobId": "blob-01ABC_xyz",
+    "event": {
+      "txDigest": "9Zb8wQx7",
+      "epoch": 42
+    }
+  }
+}

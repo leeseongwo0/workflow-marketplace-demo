@@ -1,0 +1,15 @@
+{
+  "name": "@aiwf/executor",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aiwf/shared": "workspace:*",
+    "@aiwf/workflow-google-news": "workspace:*",
+    "zod": "4.4.3"
+  }
+}

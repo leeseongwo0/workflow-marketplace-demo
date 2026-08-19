@@ -35,8 +35,15 @@ Status: complete (2026-08-18). Verified with Sui 1.77.2, a real deterministic Ed
 
 ## Phase 3 — Crypto, Walrus, and bootstrap
 
-- [ ] Freeze AES-GCM AAD/hash/key-provider boundaries
-- [ ] Implement and offline-test crypto, Walrus adapters, and bootstrap plumbing
+Status: paused at a verified WIP checkpoint (2026-08-19). Live Testnet calls remain disabled.
+
+- [x] Freeze canonical JSON, AES-GCM AAD/envelope/hash, receipt BCS, local keyring, and Walrus integrity boundaries
+- [x] Add the server-only executor package and parent-owned crypto/keyring preparation core
+- [x] Implement the frozen LocalDemoKeyProvider, Walrus HTTP adapters, and environment parsing
+- [x] Add deterministic BCS, tamper, keyring, upload-shape, byte-limit, and bounded-retry tests
+- [x] Complete reviewed bootstrap upload plumbing without Sui publication
+- [x] Pass strict TypeScript and 121/121 deterministic offline tests
+- [ ] Rerun the interrupted final Move test regression and complete Phase 3 acceptance
 
 ## Phase 4 — Local executor
 

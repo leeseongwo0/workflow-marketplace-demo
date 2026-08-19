@@ -4,6 +4,8 @@
     "noEmit": true
   },
   "include": [
-    "packages/**/*.ts"
+    "packages/**/*.ts",
+    "apps/executor/**/*.ts",
+    "scripts/**/*.ts"
   ]
 }
