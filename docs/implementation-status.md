@@ -59,7 +59,7 @@ Status: complete (2026-08-19). Verified offline with strict TypeScript, 159 exec
 
 ## Phase 5 — Web app
 
-Status: complete (2026-08-19). Verified offline with strict TypeScript, 56 deterministic web tests, 239 workspace tests, a production Vite build, the 159-test executor regression suite, and the 20-test Move regression suite. The live path is implemented but has not yet been exercised against real Testnet objects; that evidence belongs to Phase 6.
+Status: complete (2026-08-19). Verified offline with strict TypeScript, 56 deterministic web tests, 239 workspace tests, a production Vite build, the 159-test executor regression suite, and the 20-test Move regression suite. The live implementation was subsequently exercised against the real Phase 6 Testnet objects.
 
 - [x] Add a clearly labeled local fixture presentation preview with no live wallet or network calls
 - [x] Gate live mode on a complete Testnet package/Marketplace/release configuration and reject partial or non-loopback configuration
@@ -72,7 +72,22 @@ Status: complete (2026-08-19). Verified offline with strict TypeScript, 56 deter
 
 ## Phase 6 — Testnet end-to-end
 
-- [ ] Run the real Sui Testnet/Walrus Testnet path and write the repeatable demo runbook
+Status: complete (2026-08-19). Verified with the real Sui Testnet and Walrus
+Testnet path, a seven-result live Google News RSS execution, strict TypeScript,
+239 deterministic tests, a production web build, 20/20 Move tests, a tracked
+secret scan, and read-only Sol security review with no critical or major
+findings.
+
+- [x] Publish the Move package and canonical Marketplace on Sui Testnet
+- [x] Create the WorkflowRoot and publish the active `google_news_rss/v1` release
+- [x] Upload and byte-verify the AES-256-GCM envelope on Walrus Testnet
+- [x] Buy and independently discover the exact release-specific LicensePass
+- [x] Run a real wallet-signed challenge and Google News RSS execution
+- [x] Verify canonical result hashes and the executor-signed BCS receipt
+- [x] Record and independently discover a real ExecutionReceipt
+- [x] Demonstrate license, challenge, signature, and nonce rejection paths
+- [x] Write the repeatable demo runbook and 24-item P0 evidence map
+- [x] Pass the final TypeScript, web build, Move, secret-scan, and Sol review gates
 
 ## Phase 7 — Optional Seal
 

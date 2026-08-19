@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "e2e:testnet": "node --env-file-if-exists=../../.env --import tsx scripts/run-testnet-e2e.ts",
+    "generate-key": "tsx scripts/generate-executor-key.ts",
     "start": "node --env-file-if-exists=../../.env --import tsx src/start.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
