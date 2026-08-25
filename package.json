@@ -9,10 +9,10 @@
   },
   "scripts": {
     "check": "tsc --noEmit && vitest run",
-    "verify": "corepack pnpm check && corepack pnpm --filter web build",
-    "dev:web": "corepack pnpm --filter web dev",
-    "dev:executor": "corepack pnpm --filter @aiwf/executor start",
-    "build:web": "corepack pnpm --filter web build",
+    "verify": "tsc --noEmit && vitest run && npm --prefix apps/web run build",
+    "dev:web": "npm --prefix apps/web run dev",
+    "dev:executor": "npm --prefix apps/executor run start",
+    "build:web": "npm --prefix apps/web run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "upload:walrus": "tsx scripts/upload-walrus.ts"
