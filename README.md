@@ -35,7 +35,7 @@ LicensePass 확인 또는 구매
 | React / Vite | `19.2.8` / `8.2.1` | 현재 웹 빌드에서 검증한 조합 |
 | TypeScript | `7.0.2` | strict typecheck 기준 버전 |
 
-버전 확인:
+먼저 이미 설치된 버전을 확인합니다.
 
 ```bash
 node --version
@@ -43,9 +43,56 @@ corepack pnpm --version
 sui --version
 ```
 
+위 명령에서 `sui: command not found`가 나오더라도 UI나 RSS 코드만 작업한다면 문제가 없습니다.
+
+### clone 후 버전 맞추기
+
+#### Node.js
+
+저장소에는 같은 Node 버전을 가리키는 `.nvmrc`와 `.node-version`이 들어 있습니다. 이미 nvm, fnm, mise 같은 Node 버전 관리 도구를 사용 중이면 새 도구를 설치할 필요 없이 기존 도구로 `22.13.0`을 선택하면 됩니다.
+
+nvm을 사용한다면 저장소 폴더에서 아래 두 명령만 실행합니다. 버전이 없으면 설치하고, 이미 있으면 해당 버전으로 전환합니다.
+
+```bash
+nvm install
+nvm use
+node --version
+```
+
+마지막 결과가 `v22.13.0`이면 정확히 맞습니다. 더 높은 Node 버전도 지원하지만, 팀과 같은 환경을 재현하려면 `22.13.0`을 권장합니다.
+
+#### pnpm
+
+pnpm 버전은 `package.json`에 고정되어 있으므로 별도 전역 설치 대신 Corepack을 사용합니다.
+
+```bash
+corepack pnpm --version
+```
+
+결과가 `11.22.0`이면 맞습니다. 이후 모든 pnpm 명령 앞에도 `corepack`을 붙입니다.
+
+#### Sui CLI
+
+Sui가 이미 설치되어 있을 수 있으므로 먼저 확인합니다.
+
+```bash
+sui --version
+```
+
+결과에 `1.77.2`가 포함되어 있으면 재설치하거나 변경할 필요가 없습니다. 다른 버전이고 이미 `suiup`을 사용 중이라면 다음 명령으로 프로젝트 버전을 추가하고 전환합니다.
+
+```bash
+suiup show
+suiup install sui@testnet-1.77.2
+suiup default set sui@testnet-1.77.2
+sui --version
+```
+
+`suiup: command not found`일 때만 [공식 suiup 설치 안내](https://github.com/MystenLabs/suiup#installation)를 따라 설치한 뒤 위 명령을 실행합니다. 기존 Sui가 `1.77.2`라면 suiup까지 새로 설치할 필요는 없습니다.
+
 호환성 관련 원칙은 단순합니다.
 
-- 가장 안정적인 환경은 `.node-version`의 Node와 `package.json`의 pnpm 버전을 그대로 사용하는 것입니다.
+- 가장 안정적인 환경은 `.nvmrc`와 `.node-version`의 Node, `package.json`의 pnpm 버전을 그대로 사용하는 것입니다.
 - UI나 RSS 코드만 작업한다면 Sui CLI가 없어도 됩니다. Move 파일을 수정할 때는 Sui CLI `1.77.2`를 권장합니다.
 - 더 새로운 Sui CLI가 `Move.lock`을 변경하려 하면 해당 변경을 바로 커밋하지 말고 기술 담당자와 먼저 확인합니다.
 - Sui CLI와 `@mysten/sui` SDK는 서로 다른 버전 체계를 사용하므로 버전 번호를 동일하게 맞출 필요가 없습니다.
