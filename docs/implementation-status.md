@@ -93,6 +93,20 @@ findings.
 
 - [ ] Consider only after every P0 acceptance criterion passes; Nautilus remains out of scope
 
+## Team collaboration readiness
+
+Status: complete (2026-08-25). The repository now uses Korean as the primary
+onboarding language while keeping the authoritative technical contracts intact.
+
+- [x] Replace the stale Phase 1 README with the current Phase 1–6 project overview
+- [x] Add a beginner-friendly Korean collaboration guide and simple branch/PR flow
+- [x] Add memorable root commands for web, executor, build, and PR verification
+- [x] Rename the CI job so it represents the whole TypeScript/web workspace
+- [x] Remove duplicate Codex rule/brief copies and keep optional profiles under `tools/`
+- [x] Update the active demo runbook to the recovered `1.0.1` release
+- [x] Store new Walrus uploads for an explicit 53 Testnet epochs
+- [x] Pass strict TypeScript, 245 deterministic tests, and the web production build
+
 ## Frozen Phase 1 boundaries
 
 - Only `google_news_rss/v1` is accepted; the private bundle is strict and pins the HTTPS Google News host, Korean locale, 24-hour window, maximum of 10 results, and one dedupe strategy.

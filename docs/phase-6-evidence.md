@@ -2,6 +2,19 @@
 
 Date: 2026-08-19 (Asia/Seoul)
 
+> 이 문서는 2026-08-19에 완료한 `1.0.0` 실행의 역사적 증거입니다.
+> 당시 Walrus blob은 이후 만료되었습니다. 현재 팀 데모는 2026-08-25에
+> 복구한 `1.0.1` release를 사용하며 최신 공개 ID는 `docs/demo-runbook.md`를
+> 기준으로 합니다.
+
+## Current demo recovery
+
+- WorkflowRelease: `0x2a8560b9fc657f7e9ee280897a7f3f06fe9f53b271761d2bf0c36f7d29bfa523`
+- Walrus blob: `RxMcj6lClRuLq2nwiCh7jK9sRENDYG3rRMaB-vBiDvA`
+- Storage duration: 53 Testnet epochs
+- Recovery check: wallet signature, license, Walrus integrity, decrypt, live RSS,
+  result hash, and executor receipt signature all passed; 10 results were returned.
+
 Scope: Sui Testnet, Walrus Testnet, the loopback-only local executor, and the
 live `/app` path. Secret values, wallet signatures, decrypted bundle bytes, and
 the local DEK are intentionally omitted.

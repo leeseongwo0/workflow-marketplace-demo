@@ -8,6 +8,7 @@ import {
 } from "./response-schema.js";
 import type {
   WalrusHttpOptions,
+  WalrusPublisherOptions,
   WalrusReadRetryOptions,
   WalrusUploadResult,
   WorkflowBlobPublisher,
@@ -257,18 +258,30 @@ export class WalrusPublisher implements WorkflowBlobPublisher {
 
   private readonly fetch: FetchLike;
 
-  constructor(options: WalrusHttpOptions) {
+  private readonly storageEpochs: number;
+
+  constructor(options: WalrusPublisherOptions) {
     const validated = validateHttpOptions(options);
+    if (
+      !Number.isSafeInteger(options.storageEpochs) ||
+      options.storageEpochs < 1 ||
+      options.storageEpochs > 53
+    ) {
+      throw walrusFetchFailed();
+    }
     this.baseUrl = validated.baseUrl;
     this.timeoutMs = validated.timeoutMs;
     this.maxResponseBytes = validated.maxResponseBytes;
     this.fetch = validated.fetch;
+    this.storageEpochs = options.storageEpochs;
   }
 
   async put(bytes: Uint8Array): Promise<WalrusUploadResult> {
+    const endpoint = endpointUrl(this.baseUrl);
+    endpoint.searchParams.set("epochs", this.storageEpochs.toString());
     return requestWithTimeout(
       this.fetch,
-      endpointUrl(this.baseUrl),
+      endpoint,
       {
         method: "PUT",
         headers: { "content-type": "application/octet-stream" },

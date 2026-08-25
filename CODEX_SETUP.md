@@ -23,10 +23,10 @@ Project-local `.codex` settings are applied only when Codex trusts the repositor
 ## 2. Install the user profiles
 
 ```bash
-./codex_google_news_mvd/install-codex-profiles.sh
+./tools/codex-profiles/install.sh
 ```
 
-The installer copies the profiles from `codex_google_news_mvd/codex-profiles/` with the correct profile-file naming convention.
+The installer copies the profiles from `tools/codex-profiles/profiles/` with the correct profile-file naming convention.
 
 ## 3. Start the primary session
 

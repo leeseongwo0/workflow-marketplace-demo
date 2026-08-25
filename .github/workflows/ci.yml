@@ -14,8 +14,8 @@ permissions:
   contents: read
 
 jobs:
-  phase-1:
-    name: Typecheck and deterministic tests
+  quality:
+    name: Typecheck, tests, and web build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -35,7 +35,4 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run required checks
-        run: pnpm check
-
-      - name: Build presentation UI
-        run: pnpm --filter web build
+        run: pnpm verify

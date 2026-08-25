@@ -1,19 +1,41 @@
-# Contributing
+# 기여 안내
 
-처음 참여할 때는 `README.md`를 읽고 아래 명령으로 프로젝트를 준비합니다.
+처음 참여한다면 [README](README.md)와 [팀 협업 가이드](docs/team-collaboration-guide.md)를 먼저 읽어 주세요.
+
+## 작업 시작
 
 ```bash
-corepack enable
-pnpm install --frozen-lockfile
-pnpm check
+git pull --ff-only
+git switch -c <이름>/<짧은-작업명>
+corepack pnpm install --frozen-lockfile
 ```
 
-여러 사람이 같은 파일을 동시에 수정하지 않도록 시작 전에 작업 범위를 서로 공유해 주세요. 필요하면 새 브랜치를 만들 수 있지만, 브랜치 이름이나 커밋 메시지 형식을 강제하지는 않습니다.
+브랜치 이름은 알아보기만 쉬우면 됩니다. 예: `minsu/report-ui`, `jiyun/rss-error`.
 
-변경사항을 공유하기 전에는 다음 세 가지만 확인합니다.
+## 작업 중
 
-- 한 번에 이해하기 쉬운 작은 범위로 변경했는지 확인합니다.
-- `pnpm check`가 통과하는지 확인합니다.
-- `.env`, 개인 키, DEK, 로컬 키링 같은 비밀정보가 없는지 확인합니다.
+- 한 Pull Request에는 한 가지 목적만 담습니다.
+- 같은 파일을 동시에 수정할 것 같으면 먼저 담당 범위를 공유합니다.
+- 기존 사용자 변경이나 관련 없는 코드를 되돌리지 않습니다.
+- 새로운 라이브러리는 꼭 필요한 경우에만 추가합니다.
+- Move 권한·결제·라이선스 또는 서명·암호화·키 처리 변경은 구현 전에 기술 담당자와 상의합니다.
 
-Pull Request에는 무엇을 왜 바꿨는지와 테스트 결과를 간단히 적어 주세요. Move 권한·결제 규칙이나 암호화·키 관리처럼 보안에 영향을 주는 변경은 구현 전에 기술 담당자와 상의합니다.
+## 공유 전 확인
+
+```bash
+corepack pnpm verify
+```
+
+Move 파일을 수정했다면 추가로 실행합니다.
+
+```bash
+sui move build --path move/workflow_marketplace
+sui move test --path move/workflow_marketplace
+```
+
+Pull Request에는 다음만 간단히 적으면 됩니다.
+
+- 무엇을 왜 바꿨는지
+- 화면이나 동작이 어떻게 달라졌는지
+- 실행한 테스트와 결과
+- 리뷰어가 알아야 할 제한 사항

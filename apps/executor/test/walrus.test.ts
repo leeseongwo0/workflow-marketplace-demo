@@ -73,6 +73,13 @@ function storeOptions(fetch: typeof globalThis.fetch, maxResponseBytes = 1_024) 
   };
 }
 
+function publisherOptions(fetch: typeof globalThis.fetch, storageEpochs = 53) {
+  return {
+    ...storeOptions(fetch),
+    storageEpochs,
+  };
+}
+
 describe("Walrus HTTP adapters", () => {
   it("uses an injected fetch and performs a GET at the aggregator blob URL", async () => {
     const fake = fakeFetch(responseWithBytes(BODY));
@@ -97,7 +104,7 @@ describe("Walrus HTTP adapters", () => {
         { status: 200 },
       ),
     );
-    const publisher = new WalrusPublisher(storeOptions(fake.fetch));
+    const publisher = new WalrusPublisher(publisherOptions(fake.fetch));
 
     await expect(publisher.put(BODY)).resolves.toEqual({
       status: "newly_created",
@@ -105,10 +112,18 @@ describe("Walrus HTTP adapters", () => {
       blobObjectId: "0xblob",
     });
     expect(fake.calls[0]?.input).toBe(
-      "https://walrus.example.test/endpoint/v1/blobs",
+      "https://walrus.example.test/endpoint/v1/blobs?epochs=53",
     );
     expect(fake.calls[0]?.init?.method).toBe("PUT");
     expect(fake.calls[0]?.init?.body).toBe(BODY);
+  });
+
+  it.each([0, 54, 1.5])("rejects an invalid storage epoch count: %s", (storageEpochs) => {
+    const fake = fakeFetch(responseWithBytes(BODY));
+    expect(
+      () => new WalrusPublisher(publisherOptions(fake.fetch, storageEpochs)),
+    ).toThrowError(expect.objectContaining({ code: "WALRUS_FETCH_FAILED" }));
+    expect(fake.calls).toHaveLength(0);
   });
 
   it("maps non-2xx responses and never exposes the response body", async () => {

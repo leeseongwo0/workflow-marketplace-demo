@@ -52,6 +52,7 @@ async function main(): Promise<void> {
     publisher: new WalrusPublisher({
       ...httpOptions,
       baseUrl: config.WALRUS_PUBLISHER_URL,
+      storageEpochs: config.WALRUS_STORAGE_EPOCHS,
     }),
     blobStore: new WalrusBlobStore({
       ...httpOptions,

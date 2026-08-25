@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const MAX_WALRUS_READ_TIMEOUT_MS = 60_000;
 const MAX_WALRUS_BLOB_BYTES = 10 * 1024 * 1024;
+const MAX_WALRUS_STORAGE_EPOCHS = 53;
 
 const httpsBaseUrl = z.string().trim().min(1).refine((value) => {
   try {
@@ -41,6 +42,9 @@ const phase3EnvSchema = z.object({
   WALRUS_MAX_BLOB_BYTES: positiveBoundedInteger(
     MAX_WALRUS_BLOB_BYTES,
   ).default(1_048_576),
+  WALRUS_STORAGE_EPOCHS: positiveBoundedInteger(
+    MAX_WALRUS_STORAGE_EPOCHS,
+  ).default(MAX_WALRUS_STORAGE_EPOCHS),
   LOCAL_KEYRING_PATH: z
     .string()
     .trim()
@@ -59,6 +63,7 @@ export function parsePhase3Env(
     WALRUS_AGGREGATOR_URL: env["WALRUS_AGGREGATOR_URL"],
     WALRUS_READ_TIMEOUT_MS: env["WALRUS_READ_TIMEOUT_MS"],
     WALRUS_MAX_BLOB_BYTES: env["WALRUS_MAX_BLOB_BYTES"],
+    WALRUS_STORAGE_EPOCHS: env["WALRUS_STORAGE_EPOCHS"],
     LOCAL_KEYRING_PATH: env["LOCAL_KEYRING_PATH"],
   });
 

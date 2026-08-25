@@ -23,6 +23,10 @@ export interface WalrusHttpOptions {
   fetch?: FetchLike;
 }
 
+export interface WalrusPublisherOptions extends WalrusHttpOptions {
+  storageEpochs: number;
+}
+
 export interface WalrusReadRetryOptions {
   store: WorkflowBlobStore;
   blobId: string;

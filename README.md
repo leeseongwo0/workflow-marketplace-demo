@@ -1,48 +1,101 @@
-# AI Workflow Asset Marketplace
+# AI 워크플로 자산 마켓플레이스
 
-Presentation-focused MVD for a licensed `google_news_rss/v1` workflow on Sui Testnet and Walrus Testnet.
+Sui Testnet에서 워크플로 라이선스를 구매하고, 로컬 executor가 라이선스를 확인한 뒤 Google News RSS 결과와 검증 가능한 실행 영수증을 만드는 발표용 MVD입니다.
 
-Phase 1 is complete: the shared schemas and Google News RSS workflow core are strictly typed and tested entirely offline. Later phases are intentionally not scaffolded as finished; see [the implementation status](docs/implementation-status.md).
+현재 구현 범위는 Phase 1–6입니다. 선택 사항인 Seal은 아직 구현하지 않았으며, Nautilus와 TEE는 이 MVD의 범위가 아닙니다. 세부 진행 상황은 [구현 현황](docs/implementation-status.md)에서 확인할 수 있습니다.
 
-## Requirements
-
-- Node.js 22.13 or newer
-- pnpm 11.22.0 (declared in `package.json`)
-
-## Local setup
-
-```bash
-corepack enable
-pnpm install --frozen-lockfile
-pnpm check
-```
-
-`pnpm check` runs strict TypeScript checking and all deterministic tests. Unit tests must not contact Google News, Sui, Walrus, or Seal.
-
-## Local presentation demo
-
-```bash
-corepack pnpm --filter web dev
-```
-
-Open `http://127.0.0.1:5173/`. This page is visibly labeled `Fixture mode`; wallet, license, RSS, Walrus, and receipt actions are simulated and do not submit network transactions.
-
-## Current workspace
+## 데모 흐름
 
 ```text
-packages/shared                 Shared schemas and contracts
-packages/workflow-google-news   RSS URL, parsing, normalization, and execution core
-apps/web                        Local fixture presentation page
-fixtures/google-news            Deterministic RSS fixtures
-docs/implementation-status.md   Phase 1–7 progress and frozen boundaries
+LicensePass 확인 또는 구매
+  → 검색어 입력
+  → 지갑 서명
+  → 로컬 executor 실행
+  → 뉴스 리포트 확인
+  → ExecutionReceipt 확인 및 기록
 ```
 
-## Security and scope
+웹 화면은 두 경로로 나뉩니다.
 
-- Never commit `.env`, private keys, DEKs, or `data/local-keyring.json`.
-- Never execute workflow-supplied code or fetch full Google News article pages.
-- Nautilus and TEE support are not part of this MVD.
-- Seal is optional Phase 7 work and must not be claimed before real integration.
-- Architecture, Move invariants, cryptographic formats, and key-custody boundaries require technical-owner review.
+- `/`: 프로젝트 소개용 랜딩 페이지
+- `/app`: LicensePass부터 리포트와 receipt까지 보여 주는 데모 앱
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request and [CODEX_IMPLEMENTATION_BRIEF.md](CODEX_IMPLEMENTATION_BRIEF.md) for the authoritative product contract.
+## 처음 시작하기
+
+필요한 도구:
+
+- Node.js 22.13 이상
+- Corepack과 pnpm 11.22.0
+- Move 코드를 수정할 때만 Sui CLI 1.77.2
+
+저장소를 받은 뒤 아래 명령을 실행합니다.
+
+```bash
+corepack pnpm install --frozen-lockfile
+corepack pnpm verify
+```
+
+UI만 확인하려면 다음 명령으로 충분합니다.
+
+```bash
+corepack pnpm dev:web
+```
+
+브라우저에서 `http://127.0.0.1:5173/` 또는 `http://127.0.0.1:5173/app`을 엽니다. 공개 객체 설정이 없는 로컬 환경에서는 화면에 `Fixture mode`가 명시됩니다.
+
+실제 로컬 executor 경로를 실행하려면 `.env.example`을 복사해 팀에서 공유한 개발 설정을 채운 뒤 터미널 두 개를 사용합니다.
+
+```bash
+# 터미널 1
+corepack pnpm dev:executor
+
+# 터미널 2
+corepack pnpm dev:web
+```
+
+자세한 데모 운영 절차는 [데모 실행 가이드](docs/demo-runbook.md)를 참고하세요.
+
+## 자주 쓰는 명령
+
+| 명령 | 용도 |
+| --- | --- |
+| `corepack pnpm dev:web` | 웹 개발 서버 실행 |
+| `corepack pnpm dev:executor` | 로컬 executor 실행 |
+| `corepack pnpm check` | TypeScript 검사와 결정적 테스트 실행 |
+| `corepack pnpm build:web` | 웹 production build 확인 |
+| `corepack pnpm verify` | PR 전 기본 검사 전체 실행 |
+| `sui move test --path move/workflow_marketplace` | Move 변경 검증 |
+
+## 저장소 구조
+
+```text
+apps/web                       React 랜딩·데모 앱
+apps/executor                  로컬 실행 API와 Sui/Walrus 연동
+packages/shared                공용 스키마, canonical JSON, receipt BCS
+packages/workflow-google-news  RSS URL·파싱·정규화·24시간 필터
+move/workflow_marketplace      Sui Move 마켓플레이스 패키지
+fixtures/google-news           네트워크를 사용하지 않는 XML fixture
+docs                           구현 현황, 설계, 데모와 팀 가이드
+scripts                        Walrus 업로드 등 운영 스크립트
+tools                          선택적인 개발 도구 설정
+```
+
+## 팀에서 작업하는 방법
+
+복잡한 규칙 대신 아래 네 가지만 지킵니다.
+
+1. 작업을 시작하기 전에 담당 파일과 목표를 팀에 알립니다.
+2. `main`에서 바로 수정하지 않고 짧은 작업 브랜치를 만듭니다.
+3. Pull Request 전에 `corepack pnpm verify`를 실행합니다.
+4. Move, 결제, 라이선스, 서명, 암호화 관련 변경은 기술 담당자에게 먼저 공유합니다.
+
+처음 참여하는 팀원은 [팀 협업 가이드](docs/team-collaboration-guide.md)와 [기여 안내](CONTRIBUTING.md)만 읽으면 됩니다.
+
+## 프로젝트 범위
+
+- 지원 워크플로는 `google_news_rss/v1` 하나입니다.
+- RSS 결과만 사용하며 기사 본문은 수집하지 않습니다.
+- workflow bundle은 설정 데이터이며 임의 코드를 실행하지 않습니다.
+- 단위 테스트는 Google News, Sui, Walrus에 접속하지 않습니다.
+
+제품 계약과 기술적 불변 조건은 [구현 brief](CODEX_IMPLEMENTATION_BRIEF.md)가 기준입니다.

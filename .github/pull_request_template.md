@@ -4,8 +4,13 @@
 
 ## 확인
 
-- [ ] `pnpm check`를 실행했습니다.
+- [ ] `corepack pnpm verify`를 실행했습니다.
 - [ ] 비밀정보가 포함되지 않았습니다.
+- [ ] 관련 없는 파일을 함께 수정하지 않았습니다.
+
+Move 파일을 수정했다면:
+
+- [ ] `sui move build`와 `sui move test`를 실행했습니다.
 
 ## 참고할 내용
 

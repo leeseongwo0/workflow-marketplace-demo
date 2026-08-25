@@ -37,16 +37,15 @@ These are public object identifiers from the known-good run:
 | Package | 0x19fe5223d0045492ba45d88b5e9fc9d0be4bf05cd6def862c5faef10c6ed0124 |
 | Marketplace | 0x8fc737d7538ba4db1507ec6728e8ff8a0ac9bf2cb7024e8697db0673431e7af8 |
 | WorkflowRoot | 0x0378baa3b7aade01a7c0f046f5fb02893afc17ee97ef795dc4aca9c3a10a6f54 |
-| WorkflowRelease | 0x44fef191572b5708684968c07a23acb18adee0e75f91e046e183263c0ef5e279 |
-| Walrus blob | KVPBG4K9JOrx6nI-AwmmIGB5YZzgm9LpdPdpxBqu6dY |
-| Encrypted envelope SHA-256 | 5ed861a0199ed06a05eb38db057b8ba5e46661cbbbb649ba52a3318272ced321 |
-| Public manifest SHA-256 | 8b3f6c9c67f34b004c08580ead5f1654da43ab6c6c41546523fc0a05b4bdb200 |
-| Known LicensePass | 0x75025979c2959b0650380133b192bb2e5751c0234f11d08522bf42758a130883 |
-| Known ExecutionReceipt | 0x8555af6ace69b25399ddd37af749cd3e8934c7b8ac5fcbcf42db8df9d2aecec5 |
-| Receipt transaction | 9tpch5K78PNQW6Xbr97X7TxRQkTaoYyNB4EaFqVyg7TK |
+| WorkflowRelease | 0x2a8560b9fc657f7e9ee280897a7f3f06fe9f53b271761d2bf0c36f7d29bfa523 |
+| Walrus blob | RxMcj6lClRuLq2nwiCh7jK9sRENDYG3rRMaB-vBiDvA |
+| Encrypted envelope SHA-256 | ac342f8ab7b986fc2b6cd90abda7265714efc649c46fca2bcc250f4213096b61 |
+| Public manifest SHA-256 | 6651bfa5a474f1bc74df8a1979aeb31c43a0438ea3186639cf55324a5fdb32fa |
+| Known LicensePass | 0xe5e84169542d8abc27b7902f9c19637b0dff65a2e3a8b52e75b5d96dd43ea6da |
 
-The LicensePass and ExecutionReceipt belong to the wallet used for that
-evidence run. A different clean wallet will receive different object IDs.
+The LicensePass belongs to the wallet used for this current demo release. A
+different clean wallet will receive a different object ID. The historical
+`1.0.0` receipt evidence remains in `docs/phase-6-evidence.md`.
 
 ## Configure the local environment
 
@@ -68,9 +67,10 @@ SUI_EXPLORER_BASE_URL=<HTTPS Sui explorer base URL>
 SUI_PACKAGE_ID=0x19fe5223d0045492ba45d88b5e9fc9d0be4bf05cd6def862c5faef10c6ed0124
 MARKETPLACE_ID=0x8fc737d7538ba4db1507ec6728e8ff8a0ac9bf2cb7024e8697db0673431e7af8
 WORKFLOW_ROOT_ID=0x0378baa3b7aade01a7c0f046f5fb02893afc17ee97ef795dc4aca9c3a10a6f54
-WORKFLOW_RELEASE_ID=0x44fef191572b5708684968c07a23acb18adee0e75f91e046e183263c0ef5e279
+WORKFLOW_RELEASE_ID=0x2a8560b9fc657f7e9ee280897a7f3f06fe9f53b271761d2bf0c36f7d29bfa523
 WALRUS_PUBLISHER_URL=<HTTPS Walrus Testnet publisher URL>
 WALRUS_AGGREGATOR_URL=<HTTPS Walrus Testnet aggregator URL>
+WALRUS_STORAGE_EPOCHS=53
 LOCAL_KEYRING_PATH=./data/local-keyring.json
 EXECUTOR_HOST=127.0.0.1
 EXECUTOR_PORT=3001
@@ -83,7 +83,7 @@ VITE_SUI_NETWORK=testnet
 VITE_SUI_GRPC_URL=<same public HTTPS Sui Testnet gRPC URL>
 VITE_SUI_PACKAGE_ID=0x19fe5223d0045492ba45d88b5e9fc9d0be4bf05cd6def862c5faef10c6ed0124
 VITE_MARKETPLACE_ID=0x8fc737d7538ba4db1507ec6728e8ff8a0ac9bf2cb7024e8697db0673431e7af8
-VITE_WORKFLOW_RELEASE_ID=0x44fef191572b5708684968c07a23acb18adee0e75f91e046e183263c0ef5e279
+VITE_WORKFLOW_RELEASE_ID=0x2a8560b9fc657f7e9ee280897a7f3f06fe9f53b271761d2bf0c36f7d29bfa523
 VITE_SUI_EXPLORER_BASE_URL=<same public HTTPS explorer base URL>
 ~~~
 
@@ -156,7 +156,7 @@ above instead of republishing.
 Create two local JSON files that satisfy the frozen schemas. Keep both files
 outside version control and do not paste their contents into logs:
 
-- The public manifest has schema "public-manifest/v1", version "1.0.0",
+- The public manifest has schema "public-manifest/v1", version "1.0.1",
   workflow type "google_news_rss/v1", a strict query input, and the four output
   fields.
 - The private bundle has schema "google_news_rss/v1", the HTTPS Google News RSS
@@ -169,7 +169,7 @@ Run the root upload script with its exact argument names:
 ~~~sh
 corepack pnpm upload:walrus -- \
   --root-id=0x0378baa3b7aade01a7c0f046f5fb02893afc17ee97ef795dc4aca9c3a10a6f54 \
-  --version=1.0.0 \
+  --version=1.0.1 \
   --public-manifest=<local-public-manifest.json> \
   --private-bundle=<local-private-bundle.json>
 ~~~
@@ -182,7 +182,7 @@ Save only its public "walrus.blobId", "publicManifestHash",
 release publication must record those exact values under the exact root.
 
 If the known-good release is used, verify that its Walrus blob is
-"KVPBG4K9JOrx6nI-AwmmIGB5YZzgm9LpdPdpxBqu6dY" before starting the executor.
+"RxMcj6lClRuLq2nwiCh7jK9sRENDYG3rRMaB-vBiDvA" before starting the executor.
 
 ## Start the local services
 
@@ -191,13 +191,13 @@ first; it validates Testnet-only environment configuration and binds to
 loopback:
 
 ~~~sh
-corepack pnpm --filter @aiwf/executor start
+corepack pnpm dev:executor
 ~~~
 
 In a second terminal start the web app:
 
 ~~~sh
-corepack pnpm --filter web dev
+corepack pnpm dev:web
 ~~~
 
 Open http://127.0.0.1:5173/app. The live page must show a top-right wallet

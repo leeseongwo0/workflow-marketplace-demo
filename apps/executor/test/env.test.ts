@@ -39,6 +39,7 @@ describe("Phase 3 environment parser", () => {
     expect(parsed.SUI_NETWORK).toBe("testnet");
     expect(parsed.WALRUS_READ_TIMEOUT_MS).toBe(10_000);
     expect(parsed.WALRUS_MAX_BLOB_BYTES).toBe(1_048_576);
+    expect(parsed.WALRUS_STORAGE_EPOCHS).toBe(53);
     expect(parsed.LOCAL_KEYRING_PATH).toBe("./data/local-keyring.json");
   });
 
@@ -47,6 +48,7 @@ describe("Phase 3 environment parser", () => {
       ...BASE_ENV,
       WALRUS_READ_TIMEOUT_MS: "2500",
       WALRUS_MAX_BLOB_BYTES: "4096",
+      WALRUS_STORAGE_EPOCHS: "10",
       LOCAL_KEYRING_PATH: "/tmp/demo-keyring.json",
     });
 
@@ -54,6 +56,7 @@ describe("Phase 3 environment parser", () => {
       SUI_NETWORK: "testnet",
       WALRUS_READ_TIMEOUT_MS: 2500,
       WALRUS_MAX_BLOB_BYTES: 4096,
+      WALRUS_STORAGE_EPOCHS: 10,
       LOCAL_KEYRING_PATH: "/tmp/demo-keyring.json",
     });
   });
@@ -94,6 +97,9 @@ describe("Phase 3 environment parser", () => {
     ["negative blob limit", { WALRUS_MAX_BLOB_BYTES: "-1" }],
     ["fractional blob limit", { WALRUS_MAX_BLOB_BYTES: "1.5" }],
     ["oversized blob limit", { WALRUS_MAX_BLOB_BYTES: "10485761" }],
+    ["zero storage epochs", { WALRUS_STORAGE_EPOCHS: "0" }],
+    ["fractional storage epochs", { WALRUS_STORAGE_EPOCHS: "1.5" }],
+    ["oversized storage epochs", { WALRUS_STORAGE_EPOCHS: "54" }],
   ] as const)("rejects %s", (_label, overrides) => {
     expectSecretSafeFailure({ ...BASE_ENV, ...overrides });
   });
