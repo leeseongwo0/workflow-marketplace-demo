@@ -22,11 +22,36 @@ LicensePass 확인 또는 구매
 
 ## 처음 시작하기
 
-필요한 도구:
+### 버전 호환성
 
-- Node.js 22.13 이상
-- Corepack과 pnpm 11.22.0
-- Move 코드를 수정할 때만 Sui CLI 1.77.2
+| 항목 | 저장소 기준 | 호환 범위와 사용 위치 |
+| --- | --- | --- |
+| Node.js | `22.13.0` | 최소 `22.13.0`; CI는 22.13.0, 로컬 검증은 24.19.0에서도 통과 |
+| pnpm | `11.22.0` | 정확한 버전 권장; `packageManager`와 lockfile 기준 |
+| Sui CLI | `1.77.2` | Move build/test와 Testnet 작업에 사용하는 검증 버전 |
+| Move | edition `2024` | `Move.lock`에 Testnet Sui framework revision이 고정됨 |
+| `@mysten/sui` | `2.26.2` | 웹과 executor가 함께 사용하는 고정 SDK 버전 |
+| dApp Kit | core `1.6.18`, React `2.1.20` | 현재 지갑 연결·서명 API와 호환되는 조합 |
+| React / Vite | `19.2.8` / `8.2.1` | 현재 웹 빌드에서 검증한 조합 |
+| TypeScript | `7.0.2` | strict typecheck 기준 버전 |
+
+버전 확인:
+
+```bash
+node --version
+corepack pnpm --version
+sui --version
+```
+
+호환성 관련 원칙은 단순합니다.
+
+- 가장 안정적인 환경은 `.node-version`의 Node와 `package.json`의 pnpm 버전을 그대로 사용하는 것입니다.
+- UI나 RSS 코드만 작업한다면 Sui CLI가 없어도 됩니다. Move 파일을 수정할 때는 Sui CLI `1.77.2`를 권장합니다.
+- 더 새로운 Sui CLI가 `Move.lock`을 변경하려 하면 해당 변경을 바로 커밋하지 말고 기술 담당자와 먼저 확인합니다.
+- Sui CLI와 `@mysten/sui` SDK는 서로 다른 버전 체계를 사용하므로 버전 번호를 동일하게 맞출 필요가 없습니다.
+- 의존성 설치는 pnpm만 사용합니다. `npm install`이나 Yarn을 함께 사용해 별도의 lockfile을 만들지 않습니다.
+
+### 설치
 
 저장소를 받은 뒤 아래 명령을 실행합니다.
 

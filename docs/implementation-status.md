@@ -101,6 +101,7 @@ onboarding language while keeping the authoritative technical contracts intact.
 - [x] Replace the stale Phase 1 README with the current Phase 1–6 project overview
 - [x] Add a beginner-friendly Korean collaboration guide and simple branch/PR flow
 - [x] Add memorable root commands for web, executor, build, and PR verification
+- [x] Document the verified Node, pnpm, Sui CLI, SDK, dApp Kit, and web toolchain versions
 - [x] Rename the CI job so it represents the whole TypeScript/web workspace
 - [x] Remove duplicate Codex rule/brief copies and keep optional profiles under `tools/`
 - [x] Update the active demo runbook to the recovered `1.0.1` release
