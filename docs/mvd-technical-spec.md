@@ -1,4 +1,4 @@
-# AI Workflow Asset Marketplace — Codex Implementation Brief
+# AI Workflow Asset Marketplace — MVD 기술 명세
 
 **Version:** MVD v0.2  
 **Target:** Presentation-ready local demo  
@@ -8,22 +8,14 @@
 
 ---
 
-## 0. Codex mandate
+## 0. Product objective
 
 Build the smallest reliable end-to-end demo proving this statement:
 
 > A buyer purchases a `LicensePass` on Sui, then a local executor verifies that license, downloads an encrypted workflow package from Walrus, decrypts and runs a Google News RSS workflow without exposing the package to the browser, and returns a signed execution result that can be recorded on Sui as an `ExecutionReceipt`.
 
-Work in small phases. Do not attempt the entire system in one unreviewed change.
-
-Before editing:
-
-1. Read this file and the repository-root `AGENTS.md`.
-2. Inspect the existing repository, package manager, current branch, and `git status`.
-3. Preserve useful existing code. Do not overwrite unrelated files.
-4. Write or update a phase checklist in `docs/implementation-status.md`.
-5. State which work remains on the Sol parent and which mechanical work will be delegated to `luna_builder` or `luna_tester`.
-6. Start with Phase 1 below and stop at the phase checkpoint if a product/security decision is unresolved.
+This document is the retained product and technical contract for the MVD. Current
+completion state is tracked in `docs/implementation-status.md`.
 
 ---
 
@@ -176,8 +168,6 @@ Do not pin package versions from memory. Use current stable compatible releases,
 
 ```text
 .
-├── AGENTS.md
-├── CODEX_IMPLEMENTATION_BRIEF.md
 ├── README.md
 ├── package.json
 ├── pnpm-lock.yaml
@@ -185,12 +175,6 @@ Do not pin package versions from memory. Use current stable compatible releases,
 ├── tsconfig.base.json
 ├── .env.example
 ├── .gitignore
-├── .codex/
-│   ├── config.toml
-│   └── agents/
-│       ├── luna-builder.toml
-│       ├── luna-tester.toml
-│       └── sol-reviewer.toml
 ├── apps/
 │   ├── web/
 │   │   ├── src/
@@ -239,6 +223,7 @@ Do not pin package versions from memory. Use current stable compatible releases,
 ├── data/
 │   └── .gitkeep
 └── docs/
+    ├── mvd-technical-spec.md
     ├── implementation-status.md
     ├── demo-runbook.md
     └── trust-model.md
@@ -1008,14 +993,14 @@ Validate configuration on process startup with Zod and fail fast with secret-saf
 
 ### Phase 1 — Repository and deterministic workflow core
 
-Sol parent:
+Architecture and contracts:
 
 - inspect architecture;
 - lock schemas and boundaries;
 - create the workspace structure and shared contracts;
 - decide the installed Sui SDK APIs based on current types.
 
-Delegate to `luna_builder`:
+Workflow implementation:
 
 - Google News URL builder;
 - RSS parser;
@@ -1023,7 +1008,7 @@ Delegate to `luna_builder`:
 - deduplication;
 - 24-hour filter.
 
-Delegate to `luna_tester`:
+Deterministic tests:
 
 - XML fixtures;
 - frozen-clock tests;
@@ -1041,9 +1026,8 @@ All Google News workflow tests pass without network.
 
 ### Phase 2 — Move package
 
-Sol parent only for object, payment, ownership, replay, and signature design.
-
-Implement Move module and tests. Do not delegate core Move invariants to Luna.
+Keep object, payment, ownership, replay, and signature invariants explicit in the
+Move module and its tests.
 
 Checkpoint:
 
@@ -1055,9 +1039,8 @@ sui move test
 
 ### Phase 3 — Crypto, Walrus, and bootstrap
 
-Sol parent defines AAD, hashes, key boundaries, receipt BCS schema, and state transitions.
-
-Delegate mechanical adapters and script plumbing only after interfaces are fixed.
+Define AAD, hashes, key boundaries, receipt BCS schema, and state transitions
+before implementing adapters and script plumbing.
 
 Checkpoint:
 
@@ -1082,9 +1065,8 @@ Checkpoint:
 
 ### Phase 5 — Web app
 
-Delegate presentational React components and mechanical state wiring to `luna_builder` after transaction contracts are fixed.
-
-Sol parent reviews all transaction construction and wallet signing.
+Implement presentational React components and state wiring after transaction
+contracts are fixed. Review all transaction construction and wallet signing.
 
 Checkpoint:
 
@@ -1192,7 +1174,7 @@ Fixture fallback must be visibly labeled `Fixture mode`. It may demonstrate UI a
 
 ---
 
-## 18. Required completion report from Codex
+## 18. Phase completion record
 
 At each phase, report:
 
@@ -1201,7 +1183,6 @@ Phase:
 Status:
 Files changed:
 Architecture/security decisions:
-Delegated tasks and agent used:
 Commands run:
 Tests passed:
 Tests failed:

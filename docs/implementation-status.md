@@ -103,7 +103,7 @@ onboarding language while keeping the authoritative technical contracts intact.
 - [x] Add memorable root commands for web, executor, build, and PR verification
 - [x] Document the verified Node, pnpm, Sui CLI, SDK, dApp Kit, and web toolchain versions
 - [x] Rename the CI job so it represents the whole TypeScript/web workspace
-- [x] Remove duplicate Codex rule/brief copies and keep optional profiles under `tools/`
+- [x] Remove personal Codex prompts, agent profiles, and the duplicate brief from the shared repository
 - [x] Update the active demo runbook to the recovered `1.0.1` release
 - [x] Store new Walrus uploads for an explicit 53 Testnet epochs
 - [x] Pass strict TypeScript, 245 deterministic tests, and the web production build

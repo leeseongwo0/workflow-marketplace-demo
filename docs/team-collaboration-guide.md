@@ -96,4 +96,4 @@ GitHub에서 Pull Request를 만들고 템플릿의 세 항목만 작성합니�
 - Git 충돌: 충돌 파일을 임의로 덮어쓰지 말고 해당 파일 담당자와 함께 해결합니다.
 - 실행 설정이 없음: 개인 값을 임의로 만들지 말고 팀의 개발용 `.env` 안내를 요청합니다.
 
-기술 설계의 기준은 `CODEX_IMPLEMENTATION_BRIEF.md`, 현재 완료 상태의 기준은 `docs/implementation-status.md`입니다.
+기술 설계의 기준은 `docs/mvd-technical-spec.md`, 현재 완료 상태의 기준은 `docs/implementation-status.md`입니다.

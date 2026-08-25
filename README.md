@@ -170,4 +170,4 @@ tools                          선택적인 개발 도구 설정
 - workflow bundle은 설정 데이터이며 임의 코드를 실행하지 않습니다.
 - 단위 테스트는 Google News, Sui, Walrus에 접속하지 않습니다.
 
-제품 계약과 기술적 불변 조건은 [구현 brief](CODEX_IMPLEMENTATION_BRIEF.md)가 기준입니다.
+제품 계약과 기술적 불변 조건은 [MVD 기술 명세](docs/mvd-technical-spec.md)가 기준입니다.
