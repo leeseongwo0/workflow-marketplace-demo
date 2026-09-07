@@ -1,0 +1,17 @@
+{
+  "name": "ai-marketplace-sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@mysten/seal": "^0.2.0",
+    "@mysten/sui": "^2.26.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
