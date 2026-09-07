@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@import "./styles.css";
+
+@theme {
+  --color-ink: #07100e;
+  --color-paper: #f1f5ee;
+  --color-mint: #79f2bd;
+  --color-lime: #cef66a;
+  --color-blue: #8cd9ff;
+  --color-muted: #98a79f;
+  --color-line: rgba(227, 242, 232, 0.15);
+  --color-panel: #0b1714;
+}
