@@ -1,9 +1,8 @@
 [package]
-name = "ai_marketplace"
-edition = "2024.beta"
-
-[dependencies]
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet" }
+name = "workflow_marketplace"
+version = "0.0.1"
+edition = "2024"
+license = "Apache-2.0"
 
 [addresses]
-ai_marketplace = "0x0"
+workflow_marketplace = "0x0"

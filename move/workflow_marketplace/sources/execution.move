@@ -1,9 +1,9 @@
-module ai_marketplace::execution {
+module workflow_marketplace::execution {
     use sui::clock::Clock;
     use sui::event;
     use std::bcs;
-    use ai_marketplace::license::{Self, LicensePass};
-    use ai_marketplace::agent::WorkflowRelease;
+    use workflow_marketplace::license::{Self, LicensePass};
+    use workflow_marketplace::agent::WorkflowRelease;
 
     const EReleaseMismatch: u64 = 0;
     const ESealIdentityMismatch: u64 = 1;

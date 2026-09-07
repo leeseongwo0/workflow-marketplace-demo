@@ -1,4 +1,4 @@
-module ai_marketplace::license {
+module workflow_marketplace::license {
     use sui::clock::Clock;
 
     const ELicenseExpired: u64 = 0;

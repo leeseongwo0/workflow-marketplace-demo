@@ -1,4 +1,4 @@
-module ai_marketplace::agent {
+module workflow_marketplace::agent {
     use std::string::String;
     use sui::clock::Clock;
 

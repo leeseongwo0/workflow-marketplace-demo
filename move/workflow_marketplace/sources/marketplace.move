@@ -1,13 +1,13 @@
 #[allow(lint(self_transfer, unused_object_with_fields))]
-module ai_marketplace::marketplace {
+module workflow_marketplace::marketplace {
     use sui::sui::SUI;
     use sui::coin::{Self, Coin};
     use sui::balance::{Self, Balance};
     use sui::clock::Clock;
     use sui::event;
     use std::string::String;
-    use ai_marketplace::agent::{Self, WorkflowRelease};
-    use ai_marketplace::license::{Self, ForkPermit, LicensePass};
+    use workflow_marketplace::agent::{Self, WorkflowRelease};
+    use workflow_marketplace::license::{Self, ForkPermit, LicensePass};
 
     const EInsufficientPayment: u64 = 0;
     const ENotVaultOwner: u64 = 1;
