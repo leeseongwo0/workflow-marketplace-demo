@@ -1,0 +1,10 @@
+# External endpoints that the enclave is allowed to access.
+# Sourced from workflow-marketplace-demo/.env (testnet). Seal key server
+# hostnames are NOT listed yet: the SDK resolves them from on-chain key
+# server objects at runtime, so the actual hostnames need to be confirmed
+# once the team picks which testnet key servers to use (see
+# TODO(seal) in apps/executor/src/key-provider/seal-key-provider.ts).
+endpoints:
+  - fullnode.testnet.sui.io
+  - publisher.walrus-testnet.walrus.space
+  - aggregator.walrus-testnet.walrus.space
