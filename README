@@ -1,0 +1,428 @@
+# Sui + Walrus AI Agent Marketplace — 구현 명세
+
+## 프로젝트 개요
+
+Sui(온체인 상태/권한/정산) + Walrus(분산 저장소) + Seal(KMS)을 결합한 AI 에이전트 워크플로 마켓플레이스.
+TEE(Nautilus) 파트는 별도 담당자가 구현하며, 본 명세는 **Sui Move 컨트랙트 + Walrus/Seal SDK 레이어**만 다룬다.
+
+---
+
+## 디렉토리 구조
+
+```
+project-root/
+├── move/
+│   ├── Move.toml
+│   └── sources/
+│       ├── agent.move          # AgentProfile, WorkflowRoot, WorkflowRelease
+│       ├── license.move        # LicensePass, ForkPermit
+│       └── marketplace.move    # 구매, 포크 등록, 로열티 정산
+└── sdk/
+    ├── package.json
+    ├── tsconfig.json
+    └── src/
+        ├── walrus.ts           # Walrus 업로드/다운로드 헬퍼
+        ├── seal.ts             # Seal 정책 등록 헬퍼
+        └── register.ts         # Sui 온체인 등록 파이프라인
+```
+
+---
+
+## 환경 정보
+
+- **네트워크**: Sui Testnet
+- **언어**: Move (컨트랙트), TypeScript (SDK)
+- **Sui SDK**: `@mysten/sui`
+- **Walrus**: Walrus Testnet (`https://publisher.walrus-testnet.walrus.space`, `https://aggregator.walrus-testnet.walrus.space`)
+- **Seal**: `@mysten/seal`
+
+---
+
+## Task 1: Move 컨트랙트
+
+### 1-1. `agent.move`
+
+아래 struct와 함수를 구현한다.
+
+#### Structs
+
+```move
+/// 개발자 온체인 신원. 1개의 지갑당 1개 생성을 권장하지만 강제하지 않는다.
+public struct AgentProfile has key, store {
+    id: UID,
+    owner: address,
+    name: String,
+    created_at: u64,
+}
+
+/// 워크플로의 최상위 원본. 버전(WorkflowRelease)들의 공통 부모.
+public struct WorkflowRoot has key, store {
+    id: UID,
+    agent_id: ID,           // AgentProfile의 UID
+    name: String,
+    description: String,
+    created_at: u64,
+}
+
+/// 버전별 릴리즈. 실제 파일 위치(blob_id)와 가격 정보를 보유.
+public struct WorkflowRelease has key, store {
+    id: UID,
+    root_id: ID,                        // WorkflowRoot의 UID
+    parent_release_id: Option<ID>,      // 포크 원본 릴리즈 ID. 원본이면 none()
+    version: String,
+    blob_id: String,                    // Walrus blob ID
+    price_license: u64,                 // LicensePass 가격 (MIST 단위)
+    price_fork: u64,                    // ForkPermit 가격 (MIST 단위)
+    royalty_bps: u64,                   // 로열티 비율 (basis points, 2000 = 20%)
+    is_listed: bool,                    // 마켓 노출 여부
+    created_at: u64,
+}
+```
+
+#### Functions
+
+```move
+// AgentProfile 생성 후 호출자에게 전송
+public fun create_agent_profile(name: String, clock: &Clock, ctx: &mut TxContext): AgentProfile
+
+// WorkflowRoot 생성 후 호출자에게 전송
+public fun create_workflow_root(
+    profile: &AgentProfile,
+    name: String,
+    description: String,
+    clock: &Clock,
+    ctx: &mut TxContext
+): WorkflowRoot
+
+// WorkflowRelease 생성 후 호출자에게 전송
+// parent_release_id: 포크이면 Some(ID), 원본이면 None
+public fun create_workflow_release(
+    root: &WorkflowRoot,
+    parent_release_id: Option<ID>,
+    version: String,
+    blob_id: String,
+    price_license: u64,
+    price_fork: u64,
+    royalty_bps: u64,       // 최대 5000 (50%) 제한 권장
+    clock: &Clock,
+    ctx: &mut TxContext
+): WorkflowRelease
+
+// 마켓 노출 토글 (root 소유자만 가능)
+public fun set_listed(release: &mut WorkflowRelease, listed: bool, ctx: &TxContext)
+```
+
+---
+
+### 1-2. `license.move`
+
+#### Structs
+
+```move
+/// 워크플로 실행 권한 객체. TEE가 이 객체의 소유 여부를 검증한다.
+public struct LicensePass has key, store {
+    id: UID,
+    release_id: ID,         // 대상 WorkflowRelease의 UID
+    owner: address,
+    remaining_runs: Option<u64>,    // None이면 무제한
+    expires_at: Option<u64>,        // None이면 만료 없음 (ms timestamp)
+}
+
+/// 코드 열람 및 포크 권한 객체.
+public struct ForkPermit has key, store {
+    id: UID,
+    release_id: ID,
+    owner: address,
+    expires_at: Option<u64>,
+}
+```
+
+#### Functions
+
+```move
+// LicensePass 발급 (marketplace.move에서 내부 호출용)
+public(package) fun issue_license_pass(
+    release_id: ID,
+    recipient: address,
+    remaining_runs: Option<u64>,
+    expires_at: Option<u64>,
+    ctx: &mut TxContext
+): LicensePass
+
+// ForkPermit 발급 (marketplace.move에서 내부 호출용)
+public(package) fun issue_fork_permit(
+    release_id: ID,
+    recipient: address,
+    expires_at: Option<u64>,
+    ctx: &mut TxContext
+): ForkPermit
+
+// LicensePass 유효성 검증 (TEE 연동 시 외부에서 view 호출 용도)
+// 유효하지 않으면 abort
+public fun assert_license_valid(pass: &LicensePass, clock: &Clock)
+
+// 실행 횟수 차감. remaining_runs가 0이면 abort.
+// TEE가 실행 완료 후 호출한다.
+public fun consume_run(pass: &mut LicensePass)
+
+// ForkPermit 유효성 검증
+public fun assert_fork_permit_valid(permit: &ForkPermit, clock: &Clock)
+```
+
+---
+
+### 1-3. `marketplace.move`
+
+#### Structs
+
+```move
+/// 마켓플레이스 전역 설정. 패키지 배포 시 1개 생성하여 shared object로 공유.
+public struct MarketplaceConfig has key {
+    id: UID,
+    admin: address,
+    fee_bps: u64,           // 플랫폼 수수료 (basis points)
+    fee_recipient: address,
+}
+
+/// 판매자별 수익 Vault. WorkflowRelease 등록 시 함께 생성.
+public struct RoyaltyVault has key {
+    id: UID,
+    release_id: ID,
+    owner: address,
+    balance: Balance<SUI>,
+}
+```
+
+#### Functions
+
+```move
+// 초기 배포 시 MarketplaceConfig를 shared object로 생성
+fun init(ctx: &mut TxContext)
+
+// LicensePass 구매
+// 1. 결제 금액 검증 (coin.value() == release.price_license)
+// 2. 플랫폼 수수료 분리 → fee_recipient으로 전송
+// 3. 잔액 → 판매자 RoyaltyVault로 이동
+// 4. LicensePass 발급 → 구매자에게 전송
+public fun buy_license(
+    config: &MarketplaceConfig,
+    release: &WorkflowRelease,
+    vault: &mut RoyaltyVault,
+    payment: Coin<SUI>,
+    remaining_runs: Option<u64>,
+    expires_at: Option<u64>,
+    clock: &Clock,
+    ctx: &mut TxContext
+)
+
+// ForkPermit 구매 (buy_license와 동일한 흐름)
+public fun buy_fork_permit(
+    config: &MarketplaceConfig,
+    release: &WorkflowRelease,
+    vault: &mut RoyaltyVault,
+    payment: Coin<SUI>,
+    expires_at: Option<u64>,
+    clock: &Clock,
+    ctx: &mut TxContext
+)
+
+// 포크 릴리즈 등록
+// 1. ForkPermit 유효성 검증
+// 2. 새 WorkflowRelease 생성 (parent_release_id = 원본 release ID)
+// 3. 새 RoyaltyVault 생성
+// 4. is_listed = false로 초기화 (판매자가 별도로 노출 설정)
+public fun register_fork_release(
+    permit: &ForkPermit,
+    parent_release: &WorkflowRelease,
+    parent_vault: &mut RoyaltyVault,   // 포크 등록 수수료를 부모에게 납부
+    new_blob_id: String,
+    new_version: String,
+    new_price_license: u64,
+    new_price_fork: u64,
+    new_royalty_bps: u64,
+    payment: Coin<SUI>,                // 포크 등록 수수료 = parent_release.price_fork
+    clock: &Clock,
+    ctx: &mut TxContext
+)
+
+// 포크 판매 수익 발생 시 부모 Vault로 로열티 자동 이체
+// buy_license / buy_fork_permit 내부에서 parent_release_id가 Some인 경우 호출
+fun distribute_royalty(
+    child_release: &WorkflowRelease,
+    parent_vault: &mut RoyaltyVault,
+    amount: &mut Balance<SUI>,
+)
+
+// Vault 잔액 인출 (소유자만 가능)
+public fun withdraw_vault(
+    vault: &mut RoyaltyVault,
+    ctx: &mut TxContext
+): Coin<SUI>
+```
+
+#### 정산 흐름 (buy_license 기준)
+
+```
+구매자 결제 (100 SUI)
+    │
+    ├─ 플랫폼 수수료 (fee_bps) → MarketplaceConfig.fee_recipient
+    │
+    └─ 잔액 (예: 98 SUI)
+           │
+           ├─ 부모 로열티 (royalty_bps, parent_release_id가 Some인 경우만)
+           │      → parent RoyaltyVault
+           │
+           └─ 판매자 몫 → 현재 RoyaltyVault
+```
+
+---
+
+## Task 2: TypeScript SDK
+
+### 2-1. `walrus.ts` — Walrus 업로드/다운로드 헬퍼
+
+```typescript
+// 파일 경로를 받아 Walrus에 업로드하고 blob_id를 반환
+export async function uploadToWalrus(filePath: string): Promise<string>
+
+// blob_id를 받아 파일 내용을 Buffer로 반환
+export async function downloadFromWalrus(blobId: string): Promise<Buffer>
+```
+
+**구현 상세**
+- Publisher endpoint: `https://publisher.walrus-testnet.walrus.space`
+- Aggregator endpoint: `https://aggregator.walrus-testnet.walrus.space`
+- 업로드: `PUT /v1/blobs` — multipart/form-data 또는 raw body
+- 다운로드: `GET /v1/blobs/{blob_id}`
+- Storage epoch: 기본값 사용 (testnet 기본 epoch)
+- 업로드 전 파일을 AES-256-GCM으로 암호화한다. 키와 IV는 호출자가 주입.
+
+```typescript
+// 암호화 후 업로드
+export async function encryptAndUpload(
+  filePath: string,
+  key: Buffer,   // 32 bytes
+  iv: Buffer,    // 12 bytes
+): Promise<{ blobId: string; authTag: Buffer }>
+```
+
+---
+
+### 2-2. `seal.ts` — Seal 정책 헬퍼
+
+```typescript
+// WorkflowRelease ID에 대한 Seal Access Policy를 생성하고 정책 ID를 반환
+// 조건: "Sui 온체인에서 유효한 LicensePass를 소유한 TEE만 키를 받을 수 있다"
+export async function createSealPolicy(
+  suiClient: SuiClient,
+  releaseId: string,        // WorkflowRelease object ID
+  packageId: string,        // 배포된 Move 패키지 ID
+): Promise<string>          // Seal policy ID
+
+// 암호화 키를 Seal에 등록 (정책 ID와 연결)
+export async function registerKeyWithSeal(
+  policyId: string,
+  encryptionKey: Buffer,
+): Promise<void>
+```
+
+**구현 상세**
+- `@mysten/seal` 패키지 사용
+- Seal 조건은 Move 함수 `license::assert_license_valid`를 PTB(Programmable Transaction Block)로 호출하는 방식으로 정의
+
+---
+
+### 2-3. `register.ts` — 온체인 등록 파이프라인
+
+판매자가 워크플로를 등록하는 전체 파이프라인을 하나의 함수로 묶는다.
+
+```typescript
+interface RegisterWorkflowParams {
+  suiClient: SuiClient;
+  keypair: Ed25519Keypair;
+  agentProfileId: string;       // 이미 생성된 AgentProfile object ID
+  workflowRootId: string;       // 이미 생성된 WorkflowRoot object ID
+  filePath: string;             // 업로드할 워크플로 파일 경로
+  version: string;
+  priceLicense: bigint;         // MIST 단위
+  priceFork: bigint;
+  royaltyBps: bigint;
+  parentReleaseId?: string;     // 포크인 경우에만 입력
+  packageId: string;            // 배포된 Move 패키지 ID
+  marketplaceConfigId: string;  // MarketplaceConfig shared object ID
+}
+
+// 전체 등록 파이프라인 실행
+// 1. 파일 암호화
+// 2. Walrus 업로드 → blob_id 획득
+// 3. Seal 정책 생성 및 키 등록
+// 4. Sui PTB로 create_workflow_release 호출
+// 5. 생성된 WorkflowRelease object ID 반환
+export async function registerWorkflow(
+  params: RegisterWorkflowParams
+): Promise<{ releaseId: string; blobId: string; sealPolicyId: string }>
+```
+
+---
+
+## 외부 인터페이스 (TEE 파트와의 연동 경계)
+
+TEE 담당자에게 전달해야 할 정보:
+
+### TEE가 읽어야 할 Sui 객체 필드
+
+```
+LicensePass {
+  release_id: ID       // 어떤 워크플로에 대한 라이선스인지
+  owner: address       // 소유자 (TEE 요청자와 일치 여부 검증)
+  remaining_runs: Option<u64>
+  expires_at: Option<u64>   // ms timestamp
+}
+
+WorkflowRelease {
+  blob_id: String      // Walrus에서 파일을 찾을 주소
+}
+```
+
+### TEE가 호출해야 할 Move 함수
+
+```
+// 실행 완료 후 횟수 차감
+license::consume_run(pass: &mut LicensePass)
+
+// 유효성만 확인 (횟수 차감 없음)
+license::assert_license_valid(pass: &LicensePass, clock: &Clock)
+```
+
+### Seal 키 수령 조건
+
+TEE는 다음 두 조건을 동시에 만족해야 Seal로부터 복호화 키를 받는다:
+1. 유효한 `LicensePass` 소유 (Sui 온체인 검증)
+2. 유효한 TEE Attestation Document 제출
+
+---
+
+## Move.toml 예시
+
+```toml
+[package]
+name = "ai_marketplace"
+edition = "2024.beta"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet" }
+
+[addresses]
+ai_marketplace = "0x0"
+```
+
+---
+
+## 구현 시 주의사항
+
+1. **MIST 단위**: Sui의 최소 단위는 MIST (1 SUI = 10^9 MIST). 가격 필드는 모두 MIST 기준.
+2. **royalty_bps 상한**: `register_fork_release`에서 `new_royalty_bps <= 5000` 검증 추가 (50% 초과 방지).
+3. **shared object**: `MarketplaceConfig`와 `RoyaltyVault`는 여러 트랜잭션이 동시에 접근하므로 shared object로 생성(`transfer::share_object`).
+4. **Owned object**: `LicensePass`, `ForkPermit`, `AgentProfile`, `WorkflowRoot`, `WorkflowRelease`는 소유자에게 전송(`transfer::transfer`).
+5. **Clock**: 시간 기반 만료는 반드시 `sui::clock::Clock` shared object 사용. `tx_context::epoch()`는 ms 단위가 아니므로 사용 금지.
+6. **PTB 사용**: SDK에서 Sui 호출 시 단일 PTB로 묶어 원자성 보장.
