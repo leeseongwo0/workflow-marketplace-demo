@@ -8,14 +8,13 @@ const DEK_LENGTH = 32;
  * the given release/license/runner. Seal key servers evaluate this PTB
  * on-chain and only return key shares if it does not abort.
  *
- * TODO(seal): `seal_approve` does not exist in
- * `move/workflow_marketplace` yet. Add it (checking LicensePass ownership
- * against the release, mirroring SuiLicenseVerifier's checks) before wiring
- * a real implementation of this interface.
+ * `workflow_marketplace::execution::seal_approve(id, pass, release, clock)`
+ * checks `id == bcs::to_bytes(&object::id(release))` — the Seal identity is
+ * the release's own object ID (BCS-encoded), NOT `key_id`. See
+ * MarketplaceSealApprovalTransactionBuilder for the real implementation.
  */
 export interface SealApprovalTransactionBuilder {
   build(input: {
-    keyId: string;
     releaseId: string;
     licenseId: string;
     runnerAddress: string;
@@ -27,10 +26,13 @@ export interface SealApprovalTransactionBuilder {
  * small blob (Seal wraps only the 32-byte DEK, not the workflow bundle),
  * distinct from the AES-GCM-encrypted bundle stored in Walrus.
  *
- * TODO(seal): `WorkflowRelease` currently has no field for this blob (only
- * `key_id`, the Seal identity string). Decide with the team whether it lives
- * in a new Move field or a separate Walrus blob before wiring a real
- * implementation of this interface.
+ * TODO(seal): `WorkflowRelease` currently has no field for this blob.
+ * Agreed with the team to add a new `sealed_dek: vector<u8>` field (not
+ * merged yet) rather than a separate Walrus blob, since the ciphertext is
+ * small and this avoids a second network round trip. `keyId` here is this
+ * project's own lookup key (e.g. into the local demo keyring) — it is NOT
+ * the Seal identity, which is the release's object ID (see
+ * SealApprovalTransactionBuilder).
  */
 export interface SealEncryptedDekSource {
   get(input: { keyId: string; releaseId: string }): Promise<Uint8Array>;
@@ -96,7 +98,6 @@ export class SealKeyProvider implements KeyProvider {
           releaseId: input.releaseId,
         }),
         this.#approvalTransactions.build({
-          keyId: input.keyId,
           releaseId: input.releaseId,
           licenseId: input.licenseId,
           runnerAddress: input.runnerAddress,

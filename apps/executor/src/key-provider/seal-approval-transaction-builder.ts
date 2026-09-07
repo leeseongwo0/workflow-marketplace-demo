@@ -1,3 +1,4 @@
+import { bcs } from "@mysten/sui/bcs";
 import { Transaction } from "@mysten/sui/transactions";
 import type { SuiGrpcClient } from "@mysten/sui/grpc";
 
@@ -6,10 +7,17 @@ import { ExecutorError } from "../errors.js";
 
 /**
  * Builds the dry-run-only PTB Seal's key servers evaluate before releasing
- * key shares. Matches the seal_approve(id, license, release) signature
- * requested from the Move side (see PR discussion) — NOT yet confirmed
- * against a merged implementation, so the module name and argument order
- * here may need to change once that lands.
+ * key shares, matching the real
+ * `workflow_marketplace::execution::seal_approve(id, pass, release, clock)`
+ * on `integration/team-merge`:
+ *
+ *   assert!(id == bcs::to_bytes(&object::id(release)), ESealIdentityMismatch);
+ *   assert!(license::license_release_id(pass) == object::id(release), EReleaseMismatch);
+ *   license::assert_license_valid(pass, clock);
+ *
+ * The Seal identity is the release's own object ID (BCS-encoded), not
+ * `key_id` — encryption on the seller side must use the same encoding or
+ * decryption will fail with an identity mismatch.
  *
  * Per Seal's requirements, the transaction must call only seal_approve*
  * functions, all in the same package, and is never actually executed
@@ -29,28 +37,26 @@ export class MarketplaceSealApprovalTransactionBuilder
   }) {
     this.#suiClient = input.suiClient;
     this.#packageId = input.packageId;
-    this.#module = input.module ?? "marketplace";
+    this.#module = input.module ?? "execution";
   }
 
   async build(input: {
-    keyId: string;
     releaseId: string;
     licenseId: string;
     runnerAddress: string;
   }): Promise<Uint8Array> {
     void input.runnerAddress; // sender is implied by the session key, not passed explicitly
 
-    // The `id` argument must be the exact same bytes used at encryption time
-    // (WorkflowRelease.key_id, UTF-8 encoded) — a mismatch here is the
-    // "encryption identity mismatch" failure mode, not a hex-decoded
-    // releaseId.
+    const identity = bcs.Address.serialize(input.releaseId).toBytes();
+
     const tx = new Transaction();
     tx.moveCall({
       target: `${this.#packageId}::${this.#module}::seal_approve`,
       arguments: [
-        tx.pure.vector("u8", Array.from(new TextEncoder().encode(input.keyId))),
+        tx.pure.vector("u8", Array.from(identity)),
         tx.object(input.licenseId),
         tx.object(input.releaseId),
+        tx.object.clock(),
       ],
     });
 
