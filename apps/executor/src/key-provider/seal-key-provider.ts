@@ -15,6 +15,7 @@ const DEK_LENGTH = 32;
  */
 export interface SealApprovalTransactionBuilder {
   build(input: {
+    keyId: string;
     releaseId: string;
     licenseId: string;
     runnerAddress: string;
@@ -95,6 +96,7 @@ export class SealKeyProvider implements KeyProvider {
           releaseId: input.releaseId,
         }),
         this.#approvalTransactions.build({
+          keyId: input.keyId,
           releaseId: input.releaseId,
           licenseId: input.licenseId,
           runnerAddress: input.runnerAddress,

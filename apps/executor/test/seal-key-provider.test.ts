@@ -93,6 +93,7 @@ describe("SealKeyProvider", () => {
     await expect(instance.getDek(request())).resolves.toEqual(DEK);
 
     expect(seenApprovalInput).toEqual({
+      keyId: KEY_ID,
       releaseId: RELEASE_ID,
       licenseId: LICENSE_ID,
       runnerAddress: RUNNER_ADDRESS,
