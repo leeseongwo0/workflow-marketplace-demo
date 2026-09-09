@@ -26,13 +26,14 @@ export interface LicenseVerifier {
 export interface WorkflowReleaseMetadata {
   releaseId: string;
   rootId: string;
+  parentReleaseId: string | null;
   version: string;
-  workflowType: "google_news_rss/v1";
-  walrusBlobId: string;
-  encryptedBundleHash: string;
-  publicManifestHash: string;
-  keyId: string;
-  active: true;
+  blobId: string;
+  priceLicense: bigint;
+  priceFork: bigint;
+  royaltyBps: bigint;
+  isListed: boolean;
+  createdAt: bigint;
 }
 
 export interface ReleaseProvider {
