@@ -1,6 +1,7 @@
 import { SealClient, SessionKey } from "@mysten/seal";
 import type { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import type { SuiGrpcClient } from "@mysten/sui/grpc";
+import { normalizeSuiAddress } from "@mysten/sui/utils";
 
 import type { SealDecryptor } from "./seal-key-provider.js";
 import { ExecutorError } from "../errors.js";
@@ -13,10 +14,9 @@ export interface SealServerConfig {
 }
 
 /**
- * Real SealDecryptor backed by @mysten/seal's SealClient. The executor's own
- * signer (EXECUTOR_PRIVATE_KEY, an Ed25519Keypair) is passed straight to
- * SessionKey.create as its `signer`, so this never needs a browser wallet
- * popup — Ed25519Keypair extends the SDK's Signer class.
+ * Real SealDecryptor backed by @mysten/seal's SealClient. The supplied signer
+ * must own the LicensePass and match runnerAddress. Until the API transports a
+ * runner-authorized Seal session, an executor-only signer fails closed here.
  *
  * The SessionKey is created once and reused across requests until it
  * expires (SESSION_KEY_TTL_MIN), matching Seal's own performance guidance
@@ -46,7 +46,7 @@ export class SealClientDecryptor implements SealDecryptor {
         typeof SealClient
       >[0]["suiClient"],
       serverConfigs: input.serverConfigs,
-      verifyKeyServers: false,
+      verifyKeyServers: true,
     });
   }
 
@@ -69,7 +69,19 @@ export class SealClientDecryptor implements SealDecryptor {
   async decrypt(input: {
     encryptedDek: Uint8Array;
     approvalTxBytes: Uint8Array;
+    runnerAddress: string;
   }): Promise<Uint8Array> {
+    const runnerAddress = normalizeSuiAddress(input.runnerAddress);
+    if (
+      normalizeSuiAddress(this.#signer.getPublicKey().toSuiAddress()) !==
+      runnerAddress
+    ) {
+      throw new ExecutorError(
+        "KEY_NOT_FOUND",
+        "Seal session signer does not match the licensed runner",
+      );
+    }
+
     let sessionKey: SessionKey;
     try {
       sessionKey = await this.#getSessionKey();

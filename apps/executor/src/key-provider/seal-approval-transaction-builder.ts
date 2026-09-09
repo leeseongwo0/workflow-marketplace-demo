@@ -1,6 +1,7 @@
 import { bcs } from "@mysten/sui/bcs";
 import { Transaction } from "@mysten/sui/transactions";
 import type { SuiGrpcClient } from "@mysten/sui/grpc";
+import { normalizeSuiAddress } from "@mysten/sui/utils";
 
 import type { SealApprovalTransactionBuilder } from "./seal-key-provider.js";
 import { ExecutorError } from "../errors.js";
@@ -45,17 +46,20 @@ export class MarketplaceSealApprovalTransactionBuilder
     licenseId: string;
     runnerAddress: string;
   }): Promise<Uint8Array> {
-    void input.runnerAddress; // sender is implied by the session key, not passed explicitly
-
-    const identity = bcs.Address.serialize(input.releaseId).toBytes();
+    const runnerAddress = normalizeSuiAddress(input.runnerAddress);
+    const releaseId = normalizeSuiAddress(input.releaseId);
+    const identity = bcs.Address.serialize(releaseId).toBytes();
 
     const tx = new Transaction();
+    // Owned LicensePass resolution must use the same address that signs the
+    // Seal session. Building a transaction kind does not infer this sender.
+    tx.setSender(runnerAddress);
     tx.moveCall({
-      target: `${this.#packageId}::${this.#module}::seal_approve`,
+      target: `${normalizeSuiAddress(this.#packageId)}::${this.#module}::seal_approve`,
       arguments: [
         tx.pure.vector("u8", Array.from(identity)),
-        tx.object(input.licenseId),
-        tx.object(input.releaseId),
+        tx.object(normalizeSuiAddress(input.licenseId)),
+        tx.object(releaseId),
         tx.object.clock(),
       ],
     });

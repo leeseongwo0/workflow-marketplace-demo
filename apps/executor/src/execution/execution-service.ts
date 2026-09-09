@@ -18,6 +18,7 @@ import type {
   ReceiptSigner,
   ReleaseProvider,
   WalletSignatureVerifier,
+  WorkflowReleaseMetadata,
   WorkflowBlobStore,
 } from "../contracts.js";
 import { assertSha256, sha256Hex } from "../crypto/hash.js";
@@ -31,6 +32,18 @@ import type { InMemoryChallengeStore } from "./challenge.js";
 const RECEIPT_NONCE_BYTES = 32;
 const ED25519_PUBLIC_KEY_BYTES = 32;
 const ED25519_SIGNATURE_BYTES = 64;
+
+function requireExecutionBindings(
+  release: WorkflowReleaseMetadata,
+): NonNullable<WorkflowReleaseMetadata["executionBindings"]> {
+  if (release.executionBindings === undefined) {
+    throw new ExecutorError(
+      "INTERNAL_ERROR",
+      "Workflow release lacks verified execution bindings",
+    );
+  }
+  return release.executionBindings;
+}
 
 function hashHexToBytes(value: string): Uint8Array {
   if (!/^[0-9a-f]{64}$/u.test(value)) {
@@ -165,12 +178,13 @@ export class ExecutionService {
     }
     trace.push("LICENSE_VERIFIED");
 
-    const encryptedBundle = await this.#blobStore.get(release.walrusBlobId);
-    assertSha256(encryptedBundle, release.encryptedBundleHash);
+    const executionBindings = requireExecutionBindings(release);
+    const encryptedBundle = await this.#blobStore.get(release.blobId);
+    assertSha256(encryptedBundle, executionBindings.encryptedBundleHash);
     trace.push("WALRUS_BLOB_VERIFIED");
 
     const dek = await this.#keyProvider.getDek({
-      keyId: release.keyId,
+      keyId: executionBindings.keyId,
       releaseId: release.releaseId,
       licenseId: consumed.payload.licenseId,
       runnerAddress: consumed.payload.runnerAddress,
@@ -181,7 +195,7 @@ export class ExecutionService {
       expectedAad: createBundleAad({
         rootId: release.rootId,
         version: release.version,
-        publicManifestHash: release.publicManifestHash,
+        publicManifestHash: executionBindings.publicManifestHash,
       }),
     });
     const bundle = parseDecryptedWorkflowBundle(plaintext);
@@ -253,7 +267,7 @@ export class ExecutionService {
       workflow: {
         releaseId: release.releaseId,
         version: release.version,
-        workflowType: release.workflowType,
+        workflowType: executionBindings.workflowType,
       },
       input: {
         query: consumed.normalizedQuery,

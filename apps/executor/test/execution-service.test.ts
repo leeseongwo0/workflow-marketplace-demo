@@ -167,13 +167,20 @@ async function makeHarness(overrides: HarnessOverrides = {}) {
   const release: WorkflowReleaseMetadata = overrides.release ?? {
     releaseId: RELEASE_ID,
     rootId: ROOT_ID,
+    parentReleaseId: null,
     version: VERSION,
-    workflowType: "google_news_rss/v1",
-    walrusBlobId: "blob-phase4-execution",
-    encryptedBundleHash: artifact.encryptedBundleHash,
-    publicManifestHash: PUBLIC_MANIFEST_HASH,
-    keyId: artifact.envelope.keyId,
-    active: true,
+    blobId: "blob-phase4-execution",
+    priceLicense: 1n,
+    priceFork: 1n,
+    royaltyBps: 0n,
+    isListed: true,
+    createdAt: 0n,
+    executionBindings: {
+      workflowType: "google_news_rss/v1",
+      encryptedBundleHash: artifact.encryptedBundleHash,
+      publicManifestHash: PUBLIC_MANIFEST_HASH,
+      keyId: artifact.envelope.keyId,
+    },
   };
   const defaultLicenseVerifier: LicenseVerifier = {
     verify: async () => {
@@ -364,6 +371,24 @@ describe("ExecutionService challenge sequencing and failures", () => {
     expect(harness.calls.blob).toBe(0);
   });
 
+  it("fails closed before blob retrieval when the release lacks execution bindings", async () => {
+    const {
+      executionBindings: _executionBindings,
+      ...releaseWithoutBindings
+    } = makeReleaseForHashMismatch();
+    const harness = await makeHarness({ release: releaseWithoutBindings });
+
+    await expect(
+      harness.service.execute({
+        challengeId: harness.challenge.payload.challengeId,
+        walletSignature: harness.walletSignature,
+      }),
+    ).rejects.toMatchObject({ code: "INTERNAL_ERROR" });
+    expect(harness.calls.blob).toBe(0);
+    expect(harness.calls.key).toBe(0);
+    expect(harness.calls.feed).toBe(0);
+  });
+
   it("burns the challenge on a downstream bundle-hash failure before key retrieval or RSS", async () => {
     const harness = await makeHarness({
       release: {
@@ -463,12 +488,19 @@ function makeReleaseForHashMismatch(): WorkflowReleaseMetadata {
   return {
     releaseId: RELEASE_ID,
     rootId: ROOT_ID,
+    parentReleaseId: null,
     version: VERSION,
-    workflowType: "google_news_rss/v1",
-    walrusBlobId: "blob-phase4-execution",
-    encryptedBundleHash: "ff".repeat(32),
-    publicManifestHash: PUBLIC_MANIFEST_HASH,
-    keyId: "root:phase4:release:1.0.0",
-    active: true,
+    blobId: "blob-phase4-execution",
+    priceLicense: 1n,
+    priceFork: 1n,
+    royaltyBps: 0n,
+    isListed: true,
+    createdAt: 0n,
+    executionBindings: {
+      workflowType: "google_news_rss/v1",
+      encryptedBundleHash: "ff".repeat(32),
+      publicManifestHash: PUBLIC_MANIFEST_HASH,
+      keyId: "root:phase4:release:1.0.0",
+    },
   };
 }

@@ -14,7 +14,7 @@
     "@aiwf/workflow-google-news": "workspace:*",
     "@mysten/dapp-kit-core": "1.6.18",
     "@mysten/dapp-kit-react": "2.1.20",
-    "@mysten/sui": "2.26.2",
+    "@mysten/sui": "2.29.0",
     "lucide-react": "^1.37.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",

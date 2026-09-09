@@ -34,6 +34,17 @@ export interface WorkflowReleaseMetadata {
   royaltyBps: bigint;
   isListed: boolean;
   createdAt: bigint;
+  /**
+   * Optional until the Move release object commits these values. Execution
+   * must fail closed when they are absent; they must never be synthesized
+   * from untrusted bundle contents.
+   */
+  executionBindings?: {
+    workflowType: "google_news_rss/v1";
+    encryptedBundleHash: string;
+    publicManifestHash: string;
+    keyId: string;
+  };
 }
 
 export interface ReleaseProvider {

@@ -49,6 +49,7 @@ export interface SealDecryptor {
   decrypt(input: {
     encryptedDek: Uint8Array;
     approvalTxBytes: Uint8Array;
+    runnerAddress: string;
   }): Promise<Uint8Array>;
 }
 
@@ -110,7 +111,11 @@ export class SealKeyProvider implements KeyProvider {
 
     let dek: Uint8Array;
     try {
-      dek = await this.#decryptor.decrypt({ encryptedDek, approvalTxBytes });
+      dek = await this.#decryptor.decrypt({
+        encryptedDek,
+        approvalTxBytes,
+        runnerAddress: input.runnerAddress,
+      });
     } catch {
       throw keyNotFound();
     }

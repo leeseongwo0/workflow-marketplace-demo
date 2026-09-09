@@ -232,7 +232,7 @@ function ConfiguredLiveDemo({ config }: { config: LiveConfig }) {
       if (cancelled) return;
       setMarketplace(nextMarketplace);
       setRelease(nextRelease);
-      if (!nextRelease.active) throw new Error("Configured WorkflowRelease is inactive");
+      if (!nextRelease.isListed) throw new Error("Configured WorkflowRelease is inactive");
       if (account !== null) {
         const nextLicense = await findOwnedLicense({
           client,
@@ -290,7 +290,7 @@ function ConfiguredLiveDemo({ config }: { config: LiveConfig }) {
           packageId: config.packageId,
           marketplaceId: marketplace.id,
           releaseId: release.id,
-          priceMist: release.priceMist,
+          priceMist: release.priceLicense,
         }),
         account,
         network: "testnet",
@@ -346,7 +346,7 @@ function ConfiguredLiveDemo({ config }: { config: LiveConfig }) {
       if (
         response.workflow.releaseId !== release.id ||
         response.workflow.version !== release.version ||
-        response.workflow.workflowType !== release.workflowType
+        response.workflow.workflowType !== "google_news_rss/v1"
       ) {
         throw new Error("Execution response is not bound to the configured release and receipt");
       }
@@ -361,11 +361,8 @@ function ConfiguredLiveDemo({ config }: { config: LiveConfig }) {
       const existingReceipt = await findRecordedReceipt({
         client,
         packageId: config.packageId,
-        marketplaceId: marketplace.id,
         owner: account.address,
         releaseId: release.id,
-        licenseId: license.id,
-        nonceHash: response.receipt.payload.nonceHash,
       });
       setExecution(response);
       setVerifiedReceipt(nextVerifiedReceipt);
@@ -399,11 +396,8 @@ function ConfiguredLiveDemo({ config }: { config: LiveConfig }) {
       const nextReceipt = await retryExact(() => findRecordedReceipt({
         client,
         packageId: config.packageId,
-        marketplaceId: marketplace.id,
         owner: account.address,
         releaseId: verifiedReceipt.payload.releaseId,
-        licenseId: license.id,
-        nonceHash: verifiedReceipt.payload.nonceHash,
       }));
       setRecordDigest(result.Transaction.digest);
       setRecordedReceipt(nextReceipt);
@@ -451,15 +445,14 @@ function ConfiguredLiveDemo({ config }: { config: LiveConfig }) {
               {loadState === "pending" && <p className="demo-stage-intro">Loading configured release…</p>}
               {release !== undefined && (
                 <>
-                  <p className="demo-stage-intro">{release.title} · v{release.version}</p>
+                  <p className="demo-stage-intro">Workflow Release · v{release.version}</p>
                   <dl className="demo-facts">
-                    <ExternalValue label="Creator" value={shortId(release.creator)} />
-                    <ExternalValue label="Price" value={`${release.priceMist.toString()} MIST`} />
-                    <ExternalValue label="Workflow type" value={release.workflowType} />
+                    <ExternalValue label="Price" value={`${release.priceLicense.toString()} MIST`} />
+                    <ExternalValue label="Workflow type" value="google_news_rss/v1" />
                     <ExternalValue label="Root ID" value={shortId(release.rootId)} href={explorerObjectUrl(config, release.rootId)} />
                     <ExternalValue label="Release ID" value={shortId(release.id)} href={explorerObjectUrl(config, release.id)} />
-                    <ExternalValue label="Walrus Blob ID" value={release.walrusBlobId} />
-                    <ExternalValue label="Manifest hash" value={shortId(release.publicManifestHash)} />
+                    <ExternalValue label="Walrus Blob ID" value={release.blobId} />
+                    <ExternalValue label="Royalty" value={`${release.royaltyBps.toString()} bps`} />
                     <ExternalValue label="Wallet" value={account === null ? "Not connected" : shortId(account.address)} />
                   </dl>
                 </>

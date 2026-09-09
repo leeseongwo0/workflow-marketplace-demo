@@ -45,15 +45,21 @@ function addressOwner(address: string): unknown {
 }
 
 function licenseContent(
-  overrides: { id?: string; releaseId?: string } = {},
+  overrides: {
+    id?: string;
+    releaseId?: string;
+    owner?: string;
+    remainingRuns?: bigint | null;
+    expiresAt?: bigint | null;
+  } = {},
 ): Uint8Array {
   return licensePassBcs
     .serialize({
       id: { id: { bytes: overrides.id ?? LICENSE_ID } },
       release_id: { bytes: overrides.releaseId ?? RELEASE_ID },
-      owner: RUNNER,
-      remaining_runs: 10n,
-      expires_at: null,
+      owner: overrides.owner ?? RUNNER,
+      remaining_runs: overrides.remainingRuns === undefined ? 10n : overrides.remainingRuns,
+      expires_at: overrides.expiresAt === undefined ? null : overrides.expiresAt,
     })
     .toBytes();
 }
@@ -156,6 +162,27 @@ describe("Sui LicensePass verification", () => {
       () => verifier.verify({ releaseId: RELEASE_ID, licenseId: LICENSE_ID, runnerAddress: RUNNER }),
       "LICENSE_RELEASE_MISMATCH",
     );
+  });
+
+  it.each([
+    ["forged BCS owner", { owner: OTHER_RUNNER }],
+    ["zero remaining runs", { remainingRuns: 0n }],
+    ["expired timestamp", { expiresAt: 999n }],
+  ] as const)("rejects %s", async (_label, contentOverrides) => {
+    const { reader } = readerFor(
+      licenseObject({ content: licenseContent(contentOverrides) }),
+    );
+    const verifier = new SuiLicenseVerifier({
+      reader,
+      packageId: PACKAGE_ID,
+      nowMs: () => 1_000,
+    });
+
+    await expect(verifier.verify({
+      releaseId: RELEASE_ID,
+      licenseId: LICENSE_ID,
+      runnerAddress: RUNNER,
+    })).rejects.toBeInstanceOf(ExecutorError);
   });
 
   it.each([

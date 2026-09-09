@@ -177,7 +177,7 @@ async function main(): Promise<void> {
     packageId: env.SUI_PACKAGE_ID,
     releaseId: env.WORKFLOW_RELEASE_ID,
   });
-  if (!release.active) throw new Error("WorkflowRelease is inactive");
+  if (!release.isListed) throw new Error("WorkflowRelease is inactive");
 
   const fakeLicenseId = `0x${"f".repeat(64)}`;
   const unlicensedChallenge = await executor.createChallenge({
@@ -216,7 +216,7 @@ async function main(): Promise<void> {
         packageId: env.SUI_PACKAGE_ID,
         marketplaceId: marketplace.id,
         releaseId: release.id,
-        priceMist: release.priceMist,
+        priceMist: release.priceLicense,
       }),
       include: { effects: true },
     });
@@ -238,7 +238,7 @@ async function main(): Promise<void> {
         packageId: env.SUI_PACKAGE_ID,
         marketplaceId: marketplace.id,
         releaseId: release.id,
-        priceMist: release.priceMist,
+        priceMist: release.priceLicense,
       });
       transaction.setGasBudget(20_000_000);
       return client.signAndExecuteTransaction({
@@ -310,11 +310,8 @@ async function main(): Promise<void> {
   let receipt = await findRecordedReceipt({
     client,
     packageId: env.SUI_PACKAGE_ID,
-    marketplaceId: marketplace.id,
     owner,
     releaseId: release.id,
-    licenseId: license.id,
-    nonceHash: verifiedReceipt.payload.nonceHash,
   });
   let receiptDigest: string | undefined;
   if (receipt === undefined) {
@@ -335,11 +332,8 @@ async function main(): Promise<void> {
     receipt = await retryExact(() => findRecordedReceipt({
       client,
       packageId: env.SUI_PACKAGE_ID,
-      marketplaceId: marketplace.id,
       owner,
       releaseId: release.id,
-      licenseId: license.id,
-      nonceHash: verifiedReceipt.payload.nonceHash,
     }));
   }
 

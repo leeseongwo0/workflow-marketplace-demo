@@ -9,10 +9,12 @@ export async function uploadToWalrus(filePath: string): Promise<string> {
 }
 
 export async function uploadBytesToWalrus(data: Uint8Array): Promise<string> {
+  const body = new ArrayBuffer(data.byteLength);
+  new Uint8Array(body).set(data);
   const response = await fetch(`${PUBLISHER_URL}/v1/blobs`, {
     method: "PUT",
     headers: { "Content-Type": "application/octet-stream" },
-    body: data,
+    body,
   });
   if (!response.ok) {
     throw new Error(`Walrus upload failed: ${response.statusText}`);

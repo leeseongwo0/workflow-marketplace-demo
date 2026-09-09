@@ -71,11 +71,17 @@ export class SuiLicenseVerifier implements LicenseVerifier, ReleaseProvider {
   readonly #reader: SuiObjectReader;
   readonly #licenseType: string;
   readonly #releaseType: string;
+  readonly #nowMs: () => number;
 
-  constructor(input: { reader: SuiObjectReader; packageId: string }) {
+  constructor(input: {
+    reader: SuiObjectReader;
+    packageId: string;
+    nowMs?: () => number;
+  }) {
     this.#reader = input.reader;
     this.#licenseType = moduleType(input.packageId, "license", "LicensePass");
     this.#releaseType = moduleType(input.packageId, "agent", "WorkflowRelease");
+    this.#nowMs = input.nowMs ?? Date.now;
   }
 
   async verify(input: {
@@ -139,6 +145,21 @@ export class SuiLicenseVerifier implements LicenseVerifier, ReleaseProvider {
         "LICENSE_RELEASE_MISMATCH",
         "LicensePass does not bind the requested release",
       );
+    }
+    if (normalizeSuiAddress(license.owner) !== runnerAddress) {
+      throw new ExecutorError(
+        "LICENSE_OWNER_MISMATCH",
+        "LicensePass content does not bind the challenge runner",
+      );
+    }
+    if (license.remaining_runs !== null && BigInt(license.remaining_runs) === 0n) {
+      throw new ExecutorError("LICENSE_NOT_FOUND", "LicensePass has no remaining runs");
+    }
+    if (
+      license.expires_at !== null &&
+      BigInt(license.expires_at) <= BigInt(this.#nowMs())
+    ) {
+      throw new ExecutorError("LICENSE_NOT_FOUND", "LicensePass has expired");
     }
   }
 

@@ -104,6 +104,7 @@ describe("SealKeyProvider", () => {
     expect(seenDecryptInput).toEqual({
       encryptedDek: ENCRYPTED_DEK,
       approvalTxBytes: APPROVAL_TX_BYTES,
+      runnerAddress: RUNNER_ADDRESS,
     });
   });
 
