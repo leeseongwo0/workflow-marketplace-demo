@@ -32,6 +32,9 @@ importers:
       '@fastify/cors':
         specifier: 11.3.0
         version: 11.3.0
+      '@mysten/seal':
+        specifier: ^1.4.8
+        version: 1.4.8(@mysten/sui@2.26.2(typescript@7.0.2))
       '@mysten/sui':
         specifier: 2.26.2
         version: 2.26.2(typescript@7.0.2)
@@ -391,6 +394,11 @@ packages:
     peerDependencies:
       '@types/react': '>=17.0.0'
       react: '>=17.0.0'
+
+  '@mysten/seal@1.4.8':
+    resolution: {integrity: sha512-wZNVOTV3vicAPC3DVpRnYpGol20BanVgPLQAVthFLCpF5oTza1B6qIWnRWW30tL3pg330GgiuTB9htLV+NRuOA==}
+    peerDependencies:
+      '@mysten/sui': ^2.29.0
 
   '@mysten/slush-wallet@1.1.18':
     resolution: {integrity: sha512-TSe6kw7qCXpTxQjcQSnx7cG1g+WJiez2walEfUoR82sPkJQ7WZaxckOSsrMBtCm7sCNyesFR4qU+hN/wEtnYng==}
@@ -1751,6 +1759,13 @@ snapshots:
     transitivePeerDependencies:
       - '@mysten/sui'
       - typescript
+
+  '@mysten/seal@1.4.8(@mysten/sui@2.26.2(typescript@7.0.2))':
+    dependencies:
+      '@mysten/bcs': 2.1.1
+      '@mysten/sui': 2.26.2(typescript@7.0.2)
+      '@noble/curves': 2.3.0
+      '@noble/hashes': 2.3.0
 
   '@mysten/slush-wallet@1.1.18(@mysten/sui@2.26.2(typescript@7.0.2))(typescript@7.0.2)':
     dependencies:
