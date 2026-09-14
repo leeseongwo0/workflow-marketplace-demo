@@ -10,7 +10,7 @@ interface PurchaseModalProps {
   failureMessage: string | undefined;
   digest: string | undefined;
   rehearsing: boolean;
-  /** Provided in local dev only; replays the flow without a transaction. */
+  /** Provided only when rehearsal is opted into; replays the flow with no transaction. */
   onRehearse?: (() => void) | undefined;
   onPurchase: () => void;
   onClose: () => void;
@@ -141,7 +141,7 @@ export function PurchaseModal({
                 disabled={busy}
                 className="mt-3 w-full rounded-xl border border-lime/40 px-4 py-2.5 text-xs font-medium text-lime hover:bg-lime/10 disabled:opacity-40"
               >
-                리허설로 실행 (거래 없음 · 로컬 전용)
+                리허설로 실행 (거래 없음)
               </button>
             )}
           </>

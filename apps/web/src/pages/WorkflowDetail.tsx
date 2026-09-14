@@ -5,6 +5,7 @@ import { Heart, MessageCircle, Users } from "lucide-react";
 import { PurchaseModal } from "../components/PurchaseModal";
 import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
 import { useToast } from "../components/Toast/ToastProvider";
+import { isRehearsalEnabled } from "../lib/rehearsal";
 import { formatSui } from "../lib/sui-amount";
 import { LIVE_WORKFLOW_ID } from "../live/live-release";
 import { usePurchaseLicense } from "../live/use-purchase-license";
@@ -31,6 +32,9 @@ export default function WorkflowDetail() {
   const [showPurchase, setShowPurchase] = useState(false);
   const purchase = usePurchaseLicense();
   const cameFromSearch = (location.state as { from?: string } | null)?.from === "search";
+  // Evaluated on render, not inside the modal, so landing on the page with
+  // ?rehearsal=1 registers the flag for the rest of the session.
+  const rehearsalEnabled = isRehearsalEnabled(location.search);
 
   if (!workflow) {
     return (
@@ -270,9 +274,7 @@ export default function WorkflowDetail() {
           failureMessage={purchase.failureMessage}
           digest={purchase.digest}
           rehearsing={purchase.rehearsing}
-          onRehearse={
-            import.meta.env.DEV ? () => void purchase.rehearse() : undefined
-          }
+          onRehearse={rehearsalEnabled ? () => void purchase.rehearse() : undefined}
           onPurchase={() => void purchase.purchase()}
           onClose={() => setShowPurchase(false)}
         />

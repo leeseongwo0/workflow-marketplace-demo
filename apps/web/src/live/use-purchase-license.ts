@@ -85,10 +85,9 @@ export function usePurchaseLicense() {
    * an address that already holds a license and has no refund entry point, so
    * rehearsing the real thing would otherwise mean a fresh wallet every run.
    *
-   * Dev only — the production build never exposes it.
+   * Reached only when the caller opts in — see lib/rehearsal.
    */
   const rehearse = async () => {
-    if (!import.meta.env.DEV) return;
     setFailure(undefined);
     setDigest(undefined);
     setRehearsing(true);
