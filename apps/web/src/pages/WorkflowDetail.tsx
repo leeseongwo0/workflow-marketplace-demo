@@ -1,18 +1,27 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
+import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { MessageCircle } from "lucide-react";
 import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
+import { useToast } from "../components/Toast/ToastProvider";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 export default function WorkflowDetail() {
   const { workflowId } = useParams<{ workflowId: string }>();
   const location = useLocation();
+  const account = useCurrentAccount();
+  const addToast = useToast().addToast;
   const workflow = useWorkflowStore((s) => s.workflows.find((w) => w.id === workflowId));
   const allComments = useWorkflowStore((s) => s.comments);
+  const updateComment = useWorkflowStore((s) => s.updateComment);
+  const deleteComment = useWorkflowStore((s) => s.deleteComment);
   const comments = useMemo(
     () => allComments.filter((comment) => comment.workflowId === workflowId),
     [allComments, workflowId],
   );
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const cameFromSearch = (location.state as { from?: string } | null)?.from === "search";
 
   if (!workflow) {
@@ -25,6 +34,27 @@ export default function WorkflowDetail() {
       </div>
     );
   }
+
+  const startEditing = (commentId: string, body: string) => {
+    setConfirmDeleteId(null);
+    setEditingId(commentId);
+    setEditDraft(body);
+  };
+
+  const saveEdit = (commentId: string) => {
+    const body = editDraft.trim();
+    if (body === "") return;
+    updateComment(commentId, body);
+    setEditingId(null);
+    setEditDraft("");
+    addToast("후기를 수정했습니다.", "success");
+  };
+
+  const confirmDelete = (commentId: string) => {
+    deleteComment(commentId);
+    setConfirmDeleteId(null);
+    addToast("후기를 삭제했습니다.", "info");
+  };
 
   const handlePurchaseClick = () => {
     // Payment flow is implemented in a later round; placeholder for now.
@@ -84,20 +114,104 @@ export default function WorkflowDetail() {
             </p>
           ) : (
             <ul className="flex flex-col gap-3">
-              {comments.map((comment) => (
-                <li
-                  key={comment.id}
-                  className="rounded-xl border border-line bg-panel p-4"
-                >
-                  <div className="flex items-baseline justify-between gap-3 mb-1">
-                    <span className="text-sm font-semibold">{comment.author}</span>
-                    <span className="text-xs text-muted">
-                      {new Date(comment.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <p className="text-sm text-white/90 whitespace-pre-wrap">{comment.body}</p>
-                </li>
-              ))}
+              {comments.map((comment) => {
+                const mine = account?.address === comment.authorAddress;
+                const editing = editingId === comment.id;
+                return (
+                  <li
+                    key={comment.id}
+                    className="rounded-xl border border-line bg-panel p-4"
+                  >
+                    <div className="flex items-baseline justify-between gap-3 mb-1">
+                      <span className="text-sm font-semibold">{comment.author}</span>
+                      <span className="text-xs text-muted">
+                        {new Date(comment.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    {editing ? (
+                      <div className="fm-page-enter mt-2">
+                        <textarea
+                          autoFocus
+                          value={editDraft}
+                          onChange={(event) => setEditDraft(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Escape") setEditingId(null);
+                            if (event.key === "Enter" && !event.shiftKey) {
+                              event.preventDefault();
+                              saveEdit(comment.id);
+                            }
+                          }}
+                          rows={3}
+                          className="w-full resize-none rounded-xl border border-line bg-ink px-4 py-3 text-sm text-white focus:border-mint outline-none"
+                        />
+                        <div className="mt-2 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingId(null)}
+                            className="rounded-xl px-3 py-1.5 text-xs text-muted hover:text-white"
+                          >
+                            취소
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => saveEdit(comment.id)}
+                            disabled={editDraft.trim() === ""}
+                            className="rounded-xl bg-blue px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                          >
+                            저장
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-white/90 whitespace-pre-wrap">
+                        {comment.body}
+                      </p>
+                    )}
+
+                    {mine && !editing && (
+                      <div className="mt-3 flex justify-end gap-3 text-xs">
+                        {confirmDeleteId === comment.id ? (
+                          <>
+                            <span className="text-muted">삭제할까요?</span>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="text-muted hover:text-white"
+                            >
+                              취소
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => confirmDelete(comment.id)}
+                              className="font-semibold text-red-400 hover:text-red-300"
+                            >
+                              삭제
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => startEditing(comment.id, comment.body)}
+                              className="text-muted hover:text-white"
+                            >
+                              수정
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(comment.id)}
+                              className="text-muted hover:text-red-400"
+                            >
+                              삭제
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>

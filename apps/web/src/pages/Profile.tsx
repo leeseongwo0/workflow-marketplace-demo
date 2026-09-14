@@ -10,8 +10,20 @@ import { useWorkflowStore } from "../stores/workflow-store";
 // TEMP mock profile data — replace with real purchase/registration data
 // once the backend is wired up. Any connected wallet currently sees the
 // same fixed lists below.
-const MOCK_PURCHASED_IDS = ["workflow-a", "workflow-b", "workflow-c", "workflow-d"];
-const MOCK_REGISTERED_IDS = ["workflow-1", "workflow-2", "workflow-3", "workflow-4"];
+// google-news-rss is first on purpose: it is the one workflow with real code
+// behind it, so the Execute flow gets demoed from here.
+const MOCK_PURCHASED_IDS = [
+  "google-news-rss",
+  "github-pr-digest",
+  "invoice-parser",
+  "resume-screener",
+];
+const MOCK_REGISTERED_IDS = [
+  "meeting-notes",
+  "standup-bot",
+  "review-digest",
+  "translation-pipeline",
+];
 
 type ProfileTab = "purchased" | "registered";
 
@@ -53,7 +65,12 @@ export default function Profile() {
   const submitComment = (workflowId: string) => {
     const body = draft.trim();
     if (body === "") return;
-    addComment({ workflowId, author: authorName, body });
+    addComment({
+      workflowId,
+      author: authorName,
+      authorAddress: account.address,
+      body,
+    });
     closeComposer();
     addToast("후기를 남겼습니다. 워크플로 상세에서 확인할 수 있어요.", "success");
   };
