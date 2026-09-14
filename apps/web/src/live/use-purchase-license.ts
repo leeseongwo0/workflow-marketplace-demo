@@ -70,11 +70,33 @@ export function usePurchaseLicense() {
   const [status, setStatus] = useState<PurchaseStatus>("idle");
   const [failure, setFailure] = useState<PurchaseFailure | undefined>(undefined);
   const [digest, setDigest] = useState<string | undefined>(undefined);
+  const [rehearsing, setRehearsing] = useState(false);
 
   const reset = () => {
     setStatus("idle");
     setFailure(undefined);
     setDigest(undefined);
+    setRehearsing(false);
+  };
+
+  /**
+   * Replays the purchase screens without touching the chain, so the flow can be
+   * practised repeatedly. The deployed contract refuses a second purchase from
+   * an address that already holds a license and has no refund entry point, so
+   * rehearsing the real thing would otherwise mean a fresh wallet every run.
+   *
+   * Dev only — the production build never exposes it.
+   */
+  const rehearse = async () => {
+    if (!import.meta.env.DEV) return;
+    setFailure(undefined);
+    setDigest(undefined);
+    setRehearsing(true);
+    setStatus("signing");
+    await new Promise((resolve) => window.setTimeout(resolve, 1200));
+    setStatus("confirming");
+    await new Promise((resolve) => window.setTimeout(resolve, 1500));
+    setStatus("success");
   };
 
   const fail = (reason: PurchaseFailure) => {
@@ -94,6 +116,7 @@ export function usePurchaseLicense() {
 
     setFailure(undefined);
     setDigest(undefined);
+    setRehearsing(false);
 
     try {
       const owner = account.address;
@@ -149,9 +172,11 @@ export function usePurchaseLicense() {
   return {
     status,
     digest,
+    rehearsing,
     failureMessage: failure === undefined ? undefined : FAILURE_MESSAGES[failure],
     failure,
     purchase,
+    rehearse,
     reset,
   };
 }

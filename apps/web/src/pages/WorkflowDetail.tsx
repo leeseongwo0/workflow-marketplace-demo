@@ -269,6 +269,10 @@ export default function WorkflowDetail() {
           status={purchase.status}
           failureMessage={purchase.failureMessage}
           digest={purchase.digest}
+          rehearsing={purchase.rehearsing}
+          onRehearse={
+            import.meta.env.DEV ? () => void purchase.rehearse() : undefined
+          }
           onPurchase={() => void purchase.purchase()}
           onClose={() => setShowPurchase(false)}
         />

@@ -9,6 +9,9 @@ interface PurchaseModalProps {
   status: PurchaseStatus;
   failureMessage: string | undefined;
   digest: string | undefined;
+  rehearsing: boolean;
+  /** Provided in local dev only; replays the flow without a transaction. */
+  onRehearse?: (() => void) | undefined;
   onPurchase: () => void;
   onClose: () => void;
 }
@@ -23,6 +26,8 @@ export function PurchaseModal({
   status,
   failureMessage,
   digest,
+  rehearsing,
+  onRehearse,
   onPurchase,
   onClose,
 }: PurchaseModalProps) {
@@ -38,6 +43,12 @@ export function PurchaseModal({
         className="fm-dialog-enter w-full max-w-md rounded-2xl border border-line bg-panel p-6 text-white shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
+        {rehearsing && (
+          <p className="mb-4 rounded-xl border border-lime/40 bg-lime/10 px-4 py-2 text-xs font-semibold text-lime">
+            리허설 — 실제 거래가 아니며 체인에 아무것도 기록되지 않습니다
+          </p>
+        )}
+
         <div className="flex items-start justify-between gap-4">
           <h2 className="text-xl font-bold">{done ? "구매 완료" : "라이선스 구매"}</h2>
           <button
@@ -70,9 +81,11 @@ export function PurchaseModal({
           <>
             <p className="mt-5 flex items-start gap-2 text-sm text-mint">
               <Check className="h-4 w-4 mt-0.5 flex-shrink-0" aria-hidden="true" />
-              라이선스를 확인했습니다. 프로필의 &lsquo;구매한 워크플로&rsquo;에서 실행할 수 있습니다.
+              {rehearsing
+                ? "리허설이 끝났습니다. 실제 라이선스는 발급되지 않았습니다."
+                : "라이선스를 확인했습니다. 프로필의 ‘구매한 워크플로’에서 실행할 수 있습니다."}
             </p>
-            {digest !== undefined && (
+            {digest !== undefined && !rehearsing && (
               <p className="mt-2 text-xs text-muted break-all">거래: {digest}</p>
             )}
             <button
@@ -120,6 +133,17 @@ export function PurchaseModal({
                 {status === "error" ? "다시 시도" : "구매하기"}
               </button>
             </div>
+
+            {onRehearse !== undefined && (
+              <button
+                type="button"
+                onClick={onRehearse}
+                disabled={busy}
+                className="mt-3 w-full rounded-xl border border-lime/40 px-4 py-2.5 text-xs font-medium text-lime hover:bg-lime/10 disabled:opacity-40"
+              >
+                리허설로 실행 (거래 없음 · 로컬 전용)
+              </button>
+            )}
           </>
         )}
       </div>
