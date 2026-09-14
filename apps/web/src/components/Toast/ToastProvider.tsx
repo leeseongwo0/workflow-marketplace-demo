@@ -53,16 +53,23 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ addToast, showToast }}>
       {children}
-      <div className="fixed top-4 right-4 z-50 flex flex-col gap-3">
-        {toasts.map((toast) => (
-          <Toast
-            key={toast.id}
-            message={toast.message}
-            type={toast.type}
-            leaving={toast.leaving}
-            onClose={() => removeToast(toast.id)}
-          />
-        ))}
+      {/*
+        Sits just below the sticky header and aligns with the same container as
+        the header actions, so toasts appear under the Get Started button
+        instead of covering the top bar.
+      */}
+      <div className="pointer-events-none fixed inset-x-0 top-20 z-50">
+        <div className="container mx-auto px-5 flex flex-col items-end gap-3">
+          {toasts.map((toast) => (
+            <Toast
+              key={toast.id}
+              message={toast.message}
+              type={toast.type}
+              leaving={toast.leaving}
+              onClose={() => removeToast(toast.id)}
+            />
+          ))}
+        </div>
       </div>
     </ToastContext.Provider>
   );

@@ -14,7 +14,7 @@ const typeStyles = {
 export function Toast({ message, type, leaving, onClose }: ToastProps) {
   return (
     <div
-      className={`${leaving ? "fm-toast-leave" : "slide-in-right"} min-w-[280px] max-w-sm px-4 py-3 rounded-lg border-l-4 ${typeStyles[type]} text-white shadow-lg`}
+      className={`${leaving ? "fm-toast-leave" : "slide-in-right"} pointer-events-auto min-w-[280px] max-w-sm px-4 py-3 rounded-lg border-l-4 ${typeStyles[type]} text-white shadow-lg`}
     >
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">{message}</span>
