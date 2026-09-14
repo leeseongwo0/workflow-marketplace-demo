@@ -11,19 +11,48 @@ use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
+#[cfg(feature = "aiwf-executor")]
+const ENCLAVE_IDENTITY_KEY_PATH: &str = "/tmp/enclave-identity.key";
+
+/// Writes the raw 32-byte Ed25519 private key to a local, enclave-internal
+/// file so the sibling Node executor process can load the *same* identity
+/// instead of generating its own unrelated key. This is how attestation
+/// (this process, via get_attestation embedding eph_kp's public key) stays
+/// connected to receipt signing and Seal session signing (the Node
+/// process) — see docs/enclave-identity notes in apps/executor.
+/// The file never leaves the enclave's own ephemeral filesystem.
+#[cfg(feature = "aiwf-executor")]
+fn write_enclave_identity_key(eph_kp: &Ed25519KeyPair) -> Result<()> {
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt;
+
+    let bytes = eph_kp.copy().private().as_ref().to_vec();
+    fs::write(ENCLAVE_IDENTITY_KEY_PATH, &bytes)?;
+    fs::set_permissions(
+        ENCLAVE_IDENTITY_KEY_PATH,
+        std::fs::Permissions::from_mode(0o400),
+    )?;
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let eph_kp = Ed25519KeyPair::generate(&mut rand::thread_rng());
 
+    #[cfg(feature = "aiwf-executor")]
+    write_enclave_identity_key(&eph_kp)?;
+
     // This API_KEY value can be stored with secret-manager. To do that, follow the prompt `sh configure_enclave.sh`
     // Answer `y` to `Do you want to use a secret?` and finish. Otherwise, uncomment this code to use a hardcoded value.
     // let api_key = "045a27812dbe456392913223221306".to_string();
-    #[cfg(not(feature = "seal-example"))]
+    #[cfg(not(any(feature = "seal-example", feature = "aiwf-executor")))]
     let api_key = std::env::var("API_KEY").expect("API_KEY must be set");
 
-    // NOTE: if built with `seal-example` flag the `process_data` does not use this api_key from AppState, instead
-    // it uses SEAL_API_KEY initialized with two phase bootstrap. Modify this as needed for your application.
-    #[cfg(feature = "seal-example")]
+    // NOTE: if built with `seal-example` or `aiwf-executor`, `process_data` does not
+    // use this api_key from AppState (seal-example uses SEAL_API_KEY from its own
+    // bootstrap; aiwf-executor's /process_data is unused — the real API is the
+    // sibling Node executor). Modify this as needed for your application.
+    #[cfg(any(feature = "seal-example", feature = "aiwf-executor"))]
     let api_key = String::new();
 
     let state = Arc::new(AppState { eph_kp, api_key });

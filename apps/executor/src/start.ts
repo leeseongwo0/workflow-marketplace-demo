@@ -5,6 +5,7 @@ import { createExecutorApp } from "./api/app.js";
 import { parsePhase4Env, type Phase4Env } from "./config/phase4-env.js";
 import { InMemoryChallengeStore } from "./execution/challenge.js";
 import { ExecutionService } from "./execution/execution-service.js";
+import { loadEnclaveIdentityKey } from "./identity/enclave-identity.js";
 import { LocalDemoKeyProvider } from "./key-provider/local-demo-key-provider.js";
 import { Ed25519ReceiptSigner } from "./receipt/ed25519-receipt-signer.js";
 import { HttpRssFeedLoader } from "./rss/http-rss-feed-loader.js";
@@ -21,9 +22,9 @@ export interface ExecutorRuntime {
   executionService: ExecutionService;
 }
 
-export function createExecutorRuntime(
+export async function createExecutorRuntime(
   environment: Record<string, string | undefined> = process.env,
-): ExecutorRuntime {
+): Promise<ExecutorRuntime> {
   const env = parsePhase4Env(environment);
   const clock = new SystemClock();
   const challenges = new InMemoryChallengeStore({
@@ -48,7 +49,24 @@ export function createExecutorRuntime(
   const keyProvider = new LocalDemoKeyProvider({
     keyringPath: env.LOCAL_KEYRING_PATH,
   });
-  const receiptSigner = new Ed25519ReceiptSigner(env.EXECUTOR_PRIVATE_KEY);
+  // Prefer the enclave-attested identity key (shared with the sibling Rust
+  // process's /get_attestation) over a bare EXECUTOR_PRIVATE_KEY — the
+  // schema guarantees exactly one of these is configured. Using the
+  // attested key is what lets a signature be tied back to a specific,
+  // verified enclave measurement instead of an arbitrary key nobody vouched
+  // for.
+  let receiptSigner: Ed25519ReceiptSigner;
+  if (env.ENCLAVE_IDENTITY_KEY_PATH !== undefined) {
+    const identityKey = await loadEnclaveIdentityKey({
+      path: env.ENCLAVE_IDENTITY_KEY_PATH,
+    });
+    receiptSigner = new Ed25519ReceiptSigner(identityKey);
+  } else if (env.EXECUTOR_PRIVATE_KEY !== undefined) {
+    receiptSigner = new Ed25519ReceiptSigner(env.EXECUTOR_PRIVATE_KEY);
+  } else {
+    // Unreachable: phase4EnvSchema's refine requires exactly one of these.
+    throw new Error("No executor signing key configured");
+  }
   const rssLoader = new HttpRssFeedLoader();
   const executionService = new ExecutionService({
     challenges,
@@ -77,7 +95,7 @@ export function createExecutorRuntime(
 export async function startExecutor(
   environment: Record<string, string | undefined> = process.env,
 ): Promise<ExecutorRuntime> {
-  const runtime = createExecutorRuntime(environment);
+  const runtime = await createExecutorRuntime(environment);
   await runtime.app.listen({
     host: runtime.env.EXECUTOR_HOST,
     port: runtime.env.EXECUTOR_PORT,

@@ -79,14 +79,24 @@ const phase4EnvSchema = z.object({
   ).default(10_000),
   WALRUS_MAX_BLOB_BYTES: positiveInteger(MAX_BLOB_BYTES).default(1_048_576),
   LOCAL_KEYRING_PATH: z.string().trim().min(1).default("./data/local-keyring.json"),
-  EXECUTOR_PRIVATE_KEY: z.string().trim().min(1),
+  EXECUTOR_PRIVATE_KEY: z.string().trim().min(1).optional(),
+  /** Path to the enclave-attested identity key written by the sibling Rust
+   * process (see write_enclave_identity_key). When set, this is used
+   * instead of EXECUTOR_PRIVATE_KEY, so the receipt/Seal-session signer is
+   * provably the same key embedded in this enclave's attestation. */
+  ENCLAVE_IDENTITY_KEY_PATH: z.string().trim().min(1).optional(),
   EXECUTOR_HOST: z.literal("127.0.0.1").default("127.0.0.1"),
   EXECUTOR_PORT: portSchema.default(3_001),
   CHALLENGE_TTL_MS: positiveInteger(MAX_CHALLENGE_TTL_MS).default(
     MAX_CHALLENGE_TTL_MS,
   ),
   CORS_ORIGIN: corsOriginSchema.default("http://127.0.0.1:5173"),
-});
+}).refine(
+  (value) =>
+    (value.EXECUTOR_PRIVATE_KEY !== undefined) !==
+    (value.ENCLAVE_IDENTITY_KEY_PATH !== undefined),
+  "exactly one of EXECUTOR_PRIVATE_KEY or ENCLAVE_IDENTITY_KEY_PATH must be set",
+);
 
 export type Phase4Env = z.infer<typeof phase4EnvSchema>;
 
@@ -102,6 +112,7 @@ export function parsePhase4Env(
     WALRUS_MAX_BLOB_BYTES: env["WALRUS_MAX_BLOB_BYTES"],
     LOCAL_KEYRING_PATH: env["LOCAL_KEYRING_PATH"],
     EXECUTOR_PRIVATE_KEY: env["EXECUTOR_PRIVATE_KEY"],
+    ENCLAVE_IDENTITY_KEY_PATH: env["ENCLAVE_IDENTITY_KEY_PATH"],
     EXECUTOR_HOST: env["EXECUTOR_HOST"],
     EXECUTOR_PORT: env["EXECUTOR_PORT"],
     CHALLENGE_TTL_MS: env["CHALLENGE_TTL_MS"],
