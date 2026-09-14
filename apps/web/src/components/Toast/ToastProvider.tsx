@@ -6,7 +6,12 @@ interface Toast {
   id: number;
   message: string;
   type: "success" | "error" | "info";
+  leaving: boolean;
 }
+
+const VISIBLE_MS = 3000;
+// Keep in sync with --duration-exit / .fm-toast-leave in index.css.
+const EXIT_MS = 200;
 
 interface ToastContextValue {
   addToast: (message: string, type?: "success" | "error" | "info") => void;
@@ -22,11 +27,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const addToast = (message: string, type: "success" | "error" | "info" = "success") => {
     const id = ++toastId;
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev, { id, message, type, leaving: false }]);
 
     setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
+      setToasts((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, leaving: true } : t)),
+      );
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, EXIT_MS);
+    }, VISIBLE_MS);
   };
 
   const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
@@ -34,7 +44,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   };
 
   const removeToast = (id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, leaving: true } : t)));
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, EXIT_MS);
   };
 
   return (
@@ -46,6 +59,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={toast.id}
             message={toast.message}
             type={toast.type}
+            leaving={toast.leaving}
             onClose={() => removeToast(toast.id)}
           />
         ))}

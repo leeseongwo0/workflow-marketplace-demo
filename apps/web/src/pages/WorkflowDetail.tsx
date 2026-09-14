@@ -1,10 +1,18 @@
+import { useMemo } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
+import { MessageCircle } from "lucide-react";
+import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 export default function WorkflowDetail() {
   const { workflowId } = useParams<{ workflowId: string }>();
   const location = useLocation();
   const workflow = useWorkflowStore((s) => s.workflows.find((w) => w.id === workflowId));
+  const allComments = useWorkflowStore((s) => s.comments);
+  const comments = useMemo(
+    () => allComments.filter((comment) => comment.workflowId === workflowId),
+    [allComments, workflowId],
+  );
   const cameFromSearch = (location.state as { from?: string } | null)?.from === "search";
 
   if (!workflow) {
@@ -46,7 +54,11 @@ export default function WorkflowDetail() {
               ${workflow.price}
             </button>
           </div>
-          <div className="h-40 w-40 flex-shrink-0 rounded-2xl bg-white" />
+          <WorkflowThumbnail
+            workflow={workflow}
+            className="h-40 w-40 rounded-2xl"
+            textClassName="text-6xl"
+          />
         </div>
 
         <div className="flex items-start justify-between gap-8 mt-12 pt-6 border-t border-line">
@@ -58,6 +70,37 @@ export default function WorkflowDetail() {
           </div>
           <p className="text-muted max-w-sm text-right">{workflow.description}</p>
         </div>
+
+        <section className="mt-12 pt-6 border-t border-line">
+          <h2 className="flex items-center gap-2 text-lg font-semibold mb-4">
+            <MessageCircle className="h-5 w-5" aria-hidden="true" />
+            Comments
+            <span className="text-muted text-sm font-normal">({comments.length})</span>
+          </h2>
+
+          {comments.length === 0 ? (
+            <p className="text-muted text-sm">
+              아직 후기가 없습니다. 구매한 워크플로는 프로필에서 후기를 남길 수 있습니다.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {comments.map((comment) => (
+                <li
+                  key={comment.id}
+                  className="rounded-xl border border-line bg-panel p-4"
+                >
+                  <div className="flex items-baseline justify-between gap-3 mb-1">
+                    <span className="text-sm font-semibold">{comment.author}</span>
+                    <span className="text-xs text-muted">
+                      {new Date(comment.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="text-sm text-white/90 whitespace-pre-wrap">{comment.body}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </div>
   );

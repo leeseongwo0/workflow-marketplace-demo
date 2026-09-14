@@ -32,11 +32,11 @@ export function WalletModal({ show, onClose }: WalletModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/70 backdrop-blur-sm p-5"
+      className="fm-backdrop-enter fixed inset-0 z-50 grid place-items-center bg-black/70 backdrop-blur-sm p-5"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-line bg-panel p-6 text-white shadow-2xl"
+        className="fm-dialog-enter w-full max-w-md rounded-2xl border border-line bg-panel p-6 text-white shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">

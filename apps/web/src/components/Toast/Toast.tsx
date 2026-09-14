@@ -1,6 +1,7 @@
 interface ToastProps {
   message: string;
   type: "success" | "error" | "info";
+  leaving: boolean;
   onClose: () => void;
 }
 
@@ -10,10 +11,10 @@ const typeStyles = {
   info: "border-l-4 border-blue-600 bg-blue-900/20 text-blue-400",
 };
 
-export function Toast({ message, type, onClose }: ToastProps) {
+export function Toast({ message, type, leaving, onClose }: ToastProps) {
   return (
     <div
-      className={`slide-in-right min-w-[280px] max-w-sm px-4 py-3 rounded-lg border-l-4 ${typeStyles[type]} text-white shadow-lg transition-all duration-300 ease-out`}
+      className={`${leaving ? "fm-toast-leave" : "slide-in-right"} min-w-[280px] max-w-sm px-4 py-3 rounded-lg border-l-4 ${typeStyles[type]} text-white shadow-lg`}
     >
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">{message}</span>

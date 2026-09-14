@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { Link, Outlet } from "react-router-dom";
-import { useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
+import { Link, Outlet, useLocation } from "react-router-dom";
+import { useCurrentAccount, useCurrentNetwork, useDAppKit } from "@mysten/dapp-kit-react";
 import { truncateAddress } from "../../lib/address";
 import { useToast } from "../Toast/ToastProvider";
 import { WalletModal } from "../WalletModal";
 
 export function Layout() {
   const account = useCurrentAccount();
+  const network = useCurrentNetwork();
   const dAppKit = useDAppKit();
+  const location = useLocation();
   const addToast = useToast().addToast;
   const [showWalletModal, setShowWalletModal] = useState(false);
 
@@ -40,6 +42,13 @@ export function Layout() {
               <Link to="/register" className="text-white text-sm font-medium hover:text-mint">
                 Register
               </Link>
+              <span
+                title="현재 연결된 Sui 네트워크"
+                className="flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs font-medium text-muted"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-mint" aria-hidden="true" />
+                {network}
+              </span>
               <button
                 type="button"
                 onClick={handleGetStarted}
@@ -53,7 +62,8 @@ export function Layout() {
         </div>
       </header>
 
-      <main className="container mx-auto px-5 py-8">
+      {/* Keyed by path so the enter animation replays on every navigation. */}
+      <main key={location.pathname} className="fm-page-enter container mx-auto px-5 py-8">
         <Outlet />
       </main>
 

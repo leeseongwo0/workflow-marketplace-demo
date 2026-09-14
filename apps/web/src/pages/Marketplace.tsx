@@ -1,25 +1,15 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, Search as SearchIcon, Users } from "lucide-react";
+import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 export default function Marketplace() {
   const navigate = useNavigate();
   const workflows = useWorkflowStore((s) => s.workflows);
+  const likedWorkflowIds = useWorkflowStore((s) => s.likedWorkflowIds);
+  const toggleLike = useWorkflowStore((s) => s.toggleLike);
   const featured = useMemo(() => workflows.filter((w) => w.category === "featured"), [workflows]);
-  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
-
-  const toggleLike = (workflowId: string) => {
-    setLikedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(workflowId)) {
-        next.delete(workflowId);
-      } else {
-        next.add(workflowId);
-      }
-      return next;
-    });
-  };
 
   return (
     <div className="min-h-screen bg-ink text-white">
@@ -42,7 +32,7 @@ export default function Marketplace() {
 
       <div className="max-w-2xl mx-auto flex flex-col gap-4">
         {featured.map((workflow) => {
-          const liked = likedIds.has(workflow.id);
+          const liked = likedWorkflowIds.includes(workflow.id);
           return (
             <div
               key={workflow.id}
@@ -56,7 +46,7 @@ export default function Marketplace() {
               }}
               className="flex items-center gap-4 rounded-2xl bg-panel border border-line p-4 text-left hover:border-mint transition cursor-pointer"
             >
-              <div className="h-20 w-20 flex-shrink-0 rounded-xl bg-white" />
+              <WorkflowThumbnail workflow={workflow} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="font-semibold text-lg truncate">{workflow.name}</span>
@@ -73,14 +63,16 @@ export default function Marketplace() {
                       event.stopPropagation();
                       toggleLike(workflow.id);
                     }}
-                    className="flex items-center gap-1"
+                    aria-pressed={liked}
+                    aria-label={liked ? "좋아요 취소" : "좋아요"}
+                    className="flex items-center gap-1 hover:text-white"
                   >
                     <Heart
                       className={liked ? "h-3.5 w-3.5 text-red-500" : "h-3.5 w-3.5 text-white"}
                       fill={liked ? "currentColor" : "none"}
                       aria-hidden="true"
                     />
-                    {workflow.likes}
+                    {workflow.likes + (liked ? 1 : 0)}
                   </button>
                 </div>
               </div>

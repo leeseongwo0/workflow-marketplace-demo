@@ -10,4 +10,115 @@
   --color-muted: #98a79f;
   --color-line: rgba(227, 242, 232, 0.15);
   --color-panel: #0b1714;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-press: 90ms;
+  --duration-enter: 260ms;
+  --duration-exit: 200ms;
+}
+
+/*
+ * Interaction defaults. Anything clickable gets the same feel without the
+ * component having to opt in, so new screens inherit it automatically.
+ */
+@layer base {
+  button,
+  a,
+  [role="button"],
+  input,
+  textarea,
+  select {
+    transition:
+      color var(--duration-enter) var(--ease-out-soft),
+      background-color var(--duration-enter) var(--ease-out-soft),
+      border-color var(--duration-enter) var(--ease-out-soft),
+      opacity var(--duration-enter) var(--ease-out-soft),
+      transform var(--duration-press) var(--ease-out-soft),
+      box-shadow var(--duration-enter) var(--ease-out-soft);
+  }
+
+  button:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    transform: scale(0.97);
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-mint);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@keyframes fm-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fm-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fm-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fm-slide-out-right {
+  to {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+/* Route content: replayed on every navigation via a key on the wrapper. */
+.fm-page-enter {
+  animation: fm-fade-up var(--duration-enter) var(--ease-out-soft) both;
+}
+
+.fm-backdrop-enter {
+  animation: fm-fade-in var(--duration-enter) var(--ease-out-soft) both;
+}
+
+.fm-dialog-enter {
+  animation: fm-pop-in var(--duration-enter) var(--ease-out-soft) both;
+}
+
+.fm-toast-leave {
+  animation: fm-slide-out-right var(--duration-exit) var(--ease-out-soft) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fm-page-enter,
+  .fm-backdrop-enter,
+  .fm-dialog-enter,
+  .fm-toast-leave {
+    animation: none;
+  }
+
+  button:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    transform: none;
+  }
 }
