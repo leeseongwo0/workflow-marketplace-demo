@@ -86,6 +86,9 @@ async function validChallengeResponse(input: ChallengeFixtureOptions = {}) {
       bytesBase64: encodeBase64(message),
       preview: new TextDecoder().decode(message),
     },
+    sealSessionMessage: {
+      bytesBase64: encodeBase64(new TextEncoder().encode("seal-session-message")),
+    },
   };
 }
 
@@ -277,6 +280,22 @@ describe("ExecutorClient", () => {
     });
   });
 
+  it("rejects a challenge response missing the Seal session message", async () => {
+    const response = await validChallengeResponse();
+    const { sealSessionMessage: _omitted, ...withoutSealSession } = response;
+    const fetch = vi.fn(async () => jsonResponse(withoutSealSession));
+    const client = new ExecutorClient({
+      baseUrl: BASE_URL,
+      fetch,
+      now: () => CHALLENGE_NOW_MS,
+    });
+
+    await expect(client.createChallenge(CHALLENGE_REQUEST)).rejects.toSatisfy((error: unknown) => {
+      expectApiError(error, "INVALID_RESPONSE", "Challenge response is invalid");
+      return true;
+    });
+  });
+
   it("rejects noncanonical challenge bytes before a wallet can sign them", async () => {
     const response = await validChallengeResponse();
     const canonicalBytes = Uint8Array.from(
@@ -327,6 +346,48 @@ describe("ExecutorClient", () => {
 
     await expect(client.execute(request)).resolves.toEqual(response);
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("forwards an optional Seal session signature in the execute request body", async () => {
+    const response = validExecutionResponse();
+    let sentBody: unknown;
+    const fetch = vi.fn(async (_input: string | URL, init?: RequestInit) => {
+      sentBody = JSON.parse(init?.body as string);
+      return jsonResponse(response);
+    });
+    const client = new ExecutorClient({ baseUrl: BASE_URL, fetch });
+
+    await client.execute({
+      challengeId: CHALLENGE_ID,
+      walletSignature: "sui-signature",
+      sealSessionSignature: "seal-session-signature",
+    });
+
+    expect(sentBody).toEqual({
+      challengeId: CHALLENGE_ID,
+      walletSignature: "sui-signature",
+      sealSessionSignature: "seal-session-signature",
+    });
+  });
+
+  it("omits the Seal session signature when not provided, for backward compatibility", async () => {
+    const response = validExecutionResponse();
+    let sentBody: unknown;
+    const fetch = vi.fn(async (_input: string | URL, init?: RequestInit) => {
+      sentBody = JSON.parse(init?.body as string);
+      return jsonResponse(response);
+    });
+    const client = new ExecutorClient({ baseUrl: BASE_URL, fetch });
+
+    await client.execute({
+      challengeId: CHALLENGE_ID,
+      walletSignature: "sui-signature",
+    });
+
+    expect(sentBody).toEqual({
+      challengeId: CHALLENGE_ID,
+      walletSignature: "sui-signature",
+    });
   });
 
   it("accepts normalized submitted query and canonical hashes of displayed items", async () => {

@@ -337,10 +337,21 @@ function ConfiguredLiveDemo({ config }: { config: LiveConfig }) {
       if (signed.bytes !== challenge.personalMessage.bytesBase64) {
         throw new Error("Wallet signed bytes do not match the executor challenge");
       }
+      const sealSessionBytes = decodeBase64(challenge.sealSessionMessage.bytesBase64);
+      setExecutionStep("Waiting for Seal session signature");
+      const sealSigned = await dAppKit.signPersonalMessage({
+        message: sealSessionBytes,
+        account,
+        network: "testnet",
+      });
+      if (sealSigned.bytes !== challenge.sealSessionMessage.bytesBase64) {
+        throw new Error("Wallet signed bytes do not match the Seal session challenge");
+      }
       setExecutionStep("Executing local workflow");
       const response = await executor.execute({
         challengeId: challenge.challengeId,
         walletSignature: signed.signature,
+        sealSessionSignature: sealSigned.signature,
       });
       await verifyExecutionContent({ response, submittedQuery: query });
       if (
