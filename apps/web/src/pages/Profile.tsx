@@ -7,6 +7,7 @@ import { useToast } from "../components/Toast/ToastProvider";
 import { truncateAddress } from "../lib/address";
 import { formatSui } from "../lib/sui-amount";
 import { useOwnedWorkflowIds } from "../live/use-owned-licenses";
+import { useRegisteredWorkflows } from "../live/use-register-workflow";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 // TEMP mock profile data — replace with real purchase/registration data
@@ -21,6 +22,7 @@ export default function Profile() {
   const addComment = useWorkflowStore((s) => s.addComment);
   const addToast = useToast().addToast;
   const { ids: ownedIds, loading: loadingOwned } = useOwnedWorkflowIds();
+  const { workflows: registeredFromChain } = useRegisteredWorkflows();
   const [tab, setTab] = useState<ProfileTab>("purchased");
   const [composingFor, setComposingFor] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -39,7 +41,7 @@ export default function Profile() {
     .map((id) => workflows.find((w) => w.id === id))
     .filter((w): w is NonNullable<typeof w> => w !== undefined);
 
-  const registeredWorkflows: typeof workflows = [];
+  const registeredWorkflows = registeredFromChain;
 
   const goToDetail = (workflowId: string) => navigate(`/marketplace/${workflowId}`);
 

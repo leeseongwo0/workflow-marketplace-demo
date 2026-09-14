@@ -58,8 +58,9 @@ export default function Execute() {
         {!runnable ? (
           <Panel>
             <p className="text-sm text-muted">
-              이 워크플로는 화면 구성용 샘플이라 실행할 수 없습니다. 실제로 실행되는 것은
-              Google News RSS Monitor 하나입니다.
+              {workflow.onChainOnly === true
+                ? "이 워크플로는 온체인에 등록되어 있지만 실행용 번들이 업로드되지 않아 실행할 수 없습니다. 번들 업로드는 이번 데모 범위 밖입니다."
+                : "이 워크플로는 화면 구성용 샘플이라 실행할 수 없습니다. 실제로 실행되는 것은 Google News RSS Monitor 하나입니다."}
             </p>
           </Panel>
         ) : account === null ? (

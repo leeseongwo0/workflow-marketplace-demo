@@ -17,6 +17,8 @@ export type Workflow = {
   accent?: string;
   /** Set for workflows backed by a real executable package rather than mock data. */
   workflowType?: string;
+  /** Registered through the browser: real on-chain listing, but no bundle to run. */
+  onChainOnly?: boolean;
 };
 
 export type PurchasedWorkflow = {
@@ -40,6 +42,7 @@ type WorkflowState = {
   comments: WorkflowComment[];
   addWorkflow: (workflow: Workflow) => void;
   updateWorkflow: (workflowId: string, patch: Partial<Workflow>) => void;
+  upsertWorkflows: (workflows: Workflow[]) => void;
   purchaseWorkflow: (workflowId: string) => void;
   isPurchased: (workflowId: string) => boolean;
   toggleLike: (workflowId: string) => void;
@@ -312,6 +315,14 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         workflow.id === workflowId ? { ...workflow, ...patch } : workflow,
       ),
     })),
+  upsertWorkflows: (incoming: Workflow[]) =>
+    set((state) => {
+      const byId = new Map(state.workflows.map((workflow) => [workflow.id, workflow]));
+      for (const workflow of incoming) {
+        byId.set(workflow.id, { ...byId.get(workflow.id), ...workflow });
+      }
+      return { workflows: [...byId.values()] };
+    }),
   purchaseWorkflow: (workflowId: string) =>
     set((state) => ({
       purchasedWorkflows: [

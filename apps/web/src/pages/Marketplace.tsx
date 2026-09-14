@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Heart, Search as SearchIcon, Users } from "lucide-react";
 import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
 import { formatSui } from "../lib/sui-amount";
+import { useRegisteredWorkflows } from "../live/use-register-workflow";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 export default function Marketplace() {
@@ -10,7 +11,15 @@ export default function Marketplace() {
   const workflows = useWorkflowStore((s) => s.workflows);
   const likedWorkflowIds = useWorkflowStore((s) => s.likedWorkflowIds);
   const toggleLike = useWorkflowStore((s) => s.toggleLike);
-  const featured = useMemo(() => workflows.filter((w) => w.category === "featured"), [workflows]);
+  const { workflows: registered } = useRegisteredWorkflows();
+  // Anything this wallet registered on chain goes above the seeded catalog.
+  const featured = useMemo(() => {
+    const registeredIds = new Set(registered.map((w) => w.id));
+    return [
+      ...registered,
+      ...workflows.filter((w) => w.category === "featured" && !registeredIds.has(w.id)),
+    ];
+  }, [workflows, registered]);
 
   return (
     <div className="min-h-screen bg-ink text-white">
