@@ -5,6 +5,12 @@
 .git
 **/node_modules
 **/dist
+# apps/executor/dist/start.mjs is a build input, not output, from this
+# build's point of view: it's bundled on the host before `docker build`
+# runs (see enclave/Makefile), since StageX's core-nodejs has no npm to run
+# `pnpm bundle` inside the container.
+!apps/executor/dist
+!apps/executor/dist/**
 **/.turbo
 enclave/out
 enclave/src/nautilus-server/target

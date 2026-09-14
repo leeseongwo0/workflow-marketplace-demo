@@ -19,6 +19,17 @@ out:
 # executor code and Containerfile/run.sh changes would need a fresh EIF.
 DEPS := $(shell git -C .. ls-files enclave/src enclave/Containerfile enclave/configure_enclave.sh apps/executor packages/shared packages/workflow-google-news pnpm-lock.yaml pnpm-workspace.yaml | sed 's,^,../,')
 
+# StageX's core-nodejs is built --without-npm (no npm/corepack inside the
+# build container), so apps/executor is bundled into a dependency-free file
+# on the host, before docker build runs, instead of inside the Containerfile.
+.PHONY: bundle-aiwf-executor
+bundle-aiwf-executor:
+	cd .. && pnpm --filter @aiwf/executor bundle
+
+ifeq ($(ENCLAVE_APP),aiwf-executor)
+out/nitro.eif: bundle-aiwf-executor
+endif
+
 out/nitro.eif: $(DEPS) | out
 	docker build \
 		--pull \

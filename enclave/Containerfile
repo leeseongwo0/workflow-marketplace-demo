@@ -14,6 +14,8 @@ FROM stagex/core-llvm@sha256:583ecda677f51b69857f8027dfc58f4a931d1adc4d16214870a
 FROM stagex/core-openssl@sha256:d6487f0cb15f4ee02b420c717cb9abd85d73043c0bb3a2c6ce07688b23c1df07 AS core-openssl
 FROM stagex/core-rust@sha256:2ea0be043b92321b5d1c2784911a770ccca28c09c3cf6a0f81fc0cd05a2abb08 AS core-rust
 FROM stagex/core-musl@sha256:d9af23284cca2e1002cd53159ada469dfe6d6791814e72d6163c7de18d4ae701 AS core-musl
+# cargo/rustc need this (classic nongnu-libunwind, libunwind.so.8) — see the
+# note by core-nodejs-libunwind below for why node needs a different one.
 FROM stagex/core-libunwind@sha256:eb66122d8fc543f5e2f335bb1616f8c3a471604383e2c0a9df4a8e278505d3bc AS core-libunwind
 FROM stagex/core-pkgconf@sha256:52624a89bb8cc684bc0391fcb7770ded2bbcb281e84bdb68a31fce127439fd7b AS core-pkgconf
 FROM stagex/core-busybox@sha256:637b1e0d9866807fac94c22d6dc4b2e1f45c8a5ca1113c88172e0324a30c7283 AS core-busybox
@@ -21,8 +23,25 @@ FROM stagex/core-python@sha256:95504b36f4340782f5aa492d68f9a713406391898bf41cd62
 FROM stagex/core-libzstd@sha256:5382c221194b6d0690eb65ccca01c720a6bd39f92e610dbc0e99ba43f38f3094 AS core-libzstd
 # For aiwf-executor: bundles Node.js so the existing TypeScript executor
 # (apps/executor in workflow-marketplace-demo) can run as a sibling process
-# to this Rust binary instead of being ported to Rust.
+# to this Rust binary instead of being ported to Rust. Node here is built
+# by StageX with --without-npm, so npm/corepack are never available inside
+# this image; apps/executor is bundled on the host (see Makefile) instead of
+# inside this build. core-nodejs-libunwind/libcxx/libcxxabi/icu/libnghttp2/
+# brotli/c-ares are node's own dynamic runtime deps (it's linked --shared-*);
+# they must come from the SAME StageX release generation as core-nodejs
+# below, since libunwind/libc++'s ABI differs across generations. This is a
+# DIFFERENT libunwind than core-libunwind above: core-rust/cargo (an older
+# pin) dynamically needs the classic nongnu-libunwind's libunwind.so.8,
+# while node needs LLVM's own libunwind.so.1 — different sonames, so both
+# coexist fine, but neither substitutes for the other.
 FROM stagex/core-nodejs@sha256:f24b6ee6475e32dfd1a60dec01ba6536221f642bf96ec968bcf91dd5b1fe0fb5 AS core-nodejs
+FROM stagex/core-libunwind@sha256:08cd9e229ef1b4f547c25436d06a2f893f252fc1c1d8b86affbaa91b0be05cef AS core-nodejs-libunwind
+FROM stagex/core-libcxx@sha256:6e06857de33534d5b5a3485f51fcd340515fc41090a9014304b69ef0ce59a4d4 AS core-libcxx
+FROM stagex/core-libcxxabi@sha256:157643cda59f77a1e68e4cd09e3e2febe127249e409e5ed68161b40cfd4b4a95 AS core-libcxxabi
+FROM stagex/core-icu@sha256:5340c54474440a3ccdccf4b6422adce1813efacf5329006f19fb1399ef1e88e6 AS core-icu
+FROM stagex/core-libnghttp2@sha256:6018a4d56262e69d17870a1523c0b615a25b2a3d27f5c76b8aae49646a37979e AS core-libnghttp2
+FROM stagex/core-brotli@sha256:d5325cf4f603b600dc1f3522efd9a18b44b0004623943f73421d16544de11285 AS core-brotli
+FROM stagex/core-c-ares@sha256:d8bad294e960b40b46a2f78ec89a6595c8fe1cc12c8ab082716474aa7f7c73fb AS core-c-ares
 FROM stagex/user-eif_build@sha256:935032172a23772ea1a35c6334aa98aa7b0c46f9e34a040347c7b2a73496ef8a AS user-eif_build
 FROM stagex/user-gen_initramfs@sha256:a87e9a3fa8468d2e08b5abb0a6da4c7a11df22273e2c526cb22e6b131151def8 AS user-gen_initramfs
 FROM stagex/user-linux-nitro@sha256:aa1006d91a7265b33b86160031daad2fdf54ec2663ed5ccbd312567cc9beff2c AS user-linux-nitro
@@ -47,6 +66,13 @@ COPY --from=core-rust . /
 COPY --from=user-gen_initramfs . /
 COPY --from=user-eif_build . /
 COPY --from=core-llvm . /
+COPY --from=core-nodejs-libunwind . /
+COPY --from=core-libcxx . /
+COPY --from=core-libcxxabi . /
+COPY --from=core-icu . /
+COPY --from=core-libnghttp2 . /
+COPY --from=core-brotli . /
+COPY --from=core-c-ares . /
 COPY --from=core-libffi . /
 COPY --from=core-gcc . /
 COPY --from=user-cpio . /
@@ -65,20 +91,12 @@ ARG ENCLAVE_APP
 ENV RUSTFLAGS="-C target-feature=+crt-static -C relocation-model=static -C target-cpu=x86-64"
 RUN cargo build --locked --no-default-features --features $ENCLAVE_APP --release --target "$TARGET"
 
-# aiwf-executor only: bundle apps/executor into one dependency-free file
-# instead of copying node_modules (pnpm's node_modules/.pnpm symlink layout
-# doesn't survive a plain COPY well). Runs from the repo root so pnpm can
-# see the whole workspace graph.
-WORKDIR /
-RUN <<-EOF
-    set -eux
-    if [ "$ENCLAVE_APP" = "aiwf-executor" ]; then
-        corepack enable
-        corepack prepare pnpm@11.22.0 --activate
-        pnpm install --frozen-lockfile --filter @aiwf/executor...
-        pnpm --filter @aiwf/executor bundle
-    fi
-EOF
+# aiwf-executor only: apps/executor is bundled into one dependency-free
+# file on the HOST before this build runs (see Makefile), not inside this
+# image — StageX's core-nodejs is compiled with --without-npm, so neither
+# npm nor corepack exist in this build environment to run pnpm install
+# with. COPY . . above already picked up the host-built
+# apps/executor/dist/start.mjs as part of the repo tree.
 
 WORKDIR /build_cpio
 ENV KBUILD_BUILD_TIMESTAMP=1
