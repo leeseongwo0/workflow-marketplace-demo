@@ -118,14 +118,16 @@ export default function WorkflowDetail() {
           />
         </div>
 
-        <div className="flex items-start justify-between gap-8 mt-12 pt-6 border-t border-line">
-          <div>
+        <div className="flex items-start gap-10 mt-12 pt-6 border-t border-line">
+          <div className="flex-shrink-0">
             <p className="text-muted text-sm">Created by</p>
             <p className="font-semibold mb-4">{workflow.creator}</p>
             <p className="text-muted text-sm">Last update</p>
             <p className="font-semibold">{workflow.lastUpdate}</p>
           </div>
-          <p className="text-muted max-w-sm text-right">{workflow.description}</p>
+          <p className="flex-1 text-muted leading-relaxed break-keep">
+            {workflow.description}
+          </p>
         </div>
 
         <section className="mt-12 pt-6 border-t border-line">

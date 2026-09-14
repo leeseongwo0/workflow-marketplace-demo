@@ -60,7 +60,8 @@ type WorkflowState = {
 // API is wired up. Everything below it is catalog dressing for the demo.
 const GOOGLE_NEWS_WORKFLOW: Workflow = {
   id: "google-news-rss",
-  name: "Google News Digest",
+  // Matches the title on the deployed WorkflowRelease.
+  name: "Google News RSS Monitor",
   // Matches price_mist on the deployed WorkflowRelease (0.1 SUI).
   priceMist: 100_000_000,
   users: 342,
