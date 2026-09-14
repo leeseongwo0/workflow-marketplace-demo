@@ -1,31 +1,17 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Heart, MessageCircle, Play, User, Users } from "lucide-react";
 import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
 import { useToast } from "../components/Toast/ToastProvider";
 import { truncateAddress } from "../lib/address";
 import { formatSui } from "../lib/sui-amount";
+import { useOwnedWorkflowIds } from "../live/use-owned-licenses";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 // TEMP mock profile data — replace with real purchase/registration data
 // once the backend is wired up. Any connected wallet currently sees the
 // same fixed lists below.
-// google-news-rss is first on purpose: it is the one workflow with real code
-// behind it, so the Execute flow gets demoed from here.
-const MOCK_PURCHASED_IDS = [
-  "google-news-rss",
-  "github-pr-digest",
-  "invoice-parser",
-  "resume-screener",
-];
-const MOCK_REGISTERED_IDS = [
-  "meeting-notes",
-  "standup-bot",
-  "review-digest",
-  "translation-pipeline",
-];
-
 type ProfileTab = "purchased" | "registered";
 
 export default function Profile() {
@@ -34,6 +20,7 @@ export default function Profile() {
   const workflows = useWorkflowStore((s) => s.workflows);
   const addComment = useWorkflowStore((s) => s.addComment);
   const addToast = useToast().addToast;
+  const { ids: ownedIds, loading: loadingOwned } = useOwnedWorkflowIds();
   const [tab, setTab] = useState<ProfileTab>("purchased");
   const [composingFor, setComposingFor] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -46,13 +33,13 @@ export default function Profile() {
     );
   }
 
-  const purchasedWorkflows = MOCK_PURCHASED_IDS.map((id) =>
-    workflows.find((w) => w.id === id),
-  ).filter((w): w is NonNullable<typeof w> => w !== undefined);
+  // Both lists come from what actually exists on chain. Registration is not
+  // built yet, so the registered tab stays empty until it is.
+  const purchasedWorkflows = ownedIds
+    .map((id) => workflows.find((w) => w.id === id))
+    .filter((w): w is NonNullable<typeof w> => w !== undefined);
 
-  const registeredWorkflows = MOCK_REGISTERED_IDS.map((id) =>
-    workflows.find((w) => w.id === id),
-  ).filter((w): w is NonNullable<typeof w> => w !== undefined);
+  const registeredWorkflows: typeof workflows = [];
 
   const goToDetail = (workflowId: string) => navigate(`/marketplace/${workflowId}`);
 
@@ -109,6 +96,22 @@ export default function Profile() {
           등록한 워크플로
         </button>
       </div>
+
+      {tab === "purchased" && loadingOwned && (
+        <p className="text-muted text-sm">보유한 라이선스를 확인하는 중…</p>
+      )}
+
+      {tab === "purchased" && !loadingOwned && purchasedWorkflows.length === 0 && (
+        <div className="rounded-2xl border border-line bg-panel p-8 text-center">
+          <p className="text-muted text-sm">아직 구매한 워크플로가 없습니다.</p>
+          <Link
+            to="/marketplace"
+            className="mt-3 inline-block text-mint text-sm hover:underline"
+          >
+            마켓플레이스 둘러보기 →
+          </Link>
+        </div>
+      )}
 
       {tab === "purchased" && (
         <div className="flex flex-col gap-4">
@@ -203,6 +206,18 @@ export default function Profile() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {tab === "registered" && registeredWorkflows.length === 0 && (
+        <div className="rounded-2xl border border-line bg-panel p-8 text-center">
+          <p className="text-muted text-sm">아직 등록한 워크플로가 없습니다.</p>
+          <Link
+            to="/register"
+            className="mt-3 inline-block text-mint text-sm hover:underline"
+          >
+            워크플로 등록하기 →
+          </Link>
         </div>
       )}
 
