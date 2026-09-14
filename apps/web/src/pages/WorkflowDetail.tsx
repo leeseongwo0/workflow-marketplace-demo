@@ -4,6 +4,7 @@ import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Heart, MessageCircle, Users } from "lucide-react";
 import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
 import { useToast } from "../components/Toast/ToastProvider";
+import { formatSui } from "../lib/sui-amount";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 export default function WorkflowDetail() {
@@ -107,7 +108,7 @@ export default function WorkflowDetail() {
               onClick={handlePurchaseClick}
               className="rounded-xl bg-blue px-6 py-2.5 text-lg font-semibold text-white hover:opacity-90 transition"
             >
-              ${workflow.price}
+              {formatSui(workflow.priceMist)}
             </button>
           </div>
           <WorkflowThumbnail

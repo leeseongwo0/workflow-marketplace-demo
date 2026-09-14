@@ -5,6 +5,7 @@ import { Heart, MessageCircle, Play, User, Users } from "lucide-react";
 import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
 import { useToast } from "../components/Toast/ToastProvider";
 import { truncateAddress } from "../lib/address";
+import { formatSui } from "../lib/sui-amount";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 // TEMP mock profile data — replace with real purchase/registration data
@@ -135,7 +136,7 @@ export default function Profile() {
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
-                          navigate(`/execute/${workflow.id}`);
+                          navigate(`/execute/${workflow.id}`, { state: { from: "profile" } });
                         }}
                         className="flex items-center gap-2 rounded-xl bg-blue px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
                       >
@@ -222,7 +223,9 @@ export default function Profile() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="font-semibold text-lg truncate">{workflow.name}</span>
-                  <span className="font-semibold text-lg whitespace-nowrap">${workflow.price}</span>
+                  <span className="font-semibold text-lg whitespace-nowrap">
+                    {formatSui(workflow.priceMist)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-end gap-4 text-xs text-muted mt-2">
                   <span className="flex items-center gap-1">

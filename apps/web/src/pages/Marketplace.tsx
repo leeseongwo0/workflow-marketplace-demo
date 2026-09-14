@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, Search as SearchIcon, Users } from "lucide-react";
 import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
+import { formatSui } from "../lib/sui-amount";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 export default function Marketplace() {
@@ -50,7 +51,9 @@ export default function Marketplace() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="font-semibold text-lg truncate">{workflow.name}</span>
-                  <span className="font-semibold text-lg whitespace-nowrap">${workflow.price}</span>
+                  <span className="font-semibold text-lg whitespace-nowrap">
+                    {formatSui(workflow.priceMist)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-end gap-4 text-xs text-muted mt-2">
                   <span className="flex items-center gap-1">

@@ -3,7 +3,7 @@ import { create } from "zustand";
 export type Workflow = {
   id: string;
   name: string;
-  price: number;
+  priceMist: number;
   users: number;
   likes: number;
   creator: string;
@@ -61,7 +61,8 @@ type WorkflowState = {
 const GOOGLE_NEWS_WORKFLOW: Workflow = {
   id: "google-news-rss",
   name: "Google News Digest",
-  price: 1000,
+  // Matches price_mist on the deployed WorkflowRelease (0.1 SUI).
+  priceMist: 100_000_000,
   users: 342,
   likes: 128,
   creator: "Seongwoo Lee",
@@ -78,7 +79,7 @@ const FEATURED_WORKFLOWS: Workflow[] = [
   {
     id: "github-pr-digest",
     name: "PR Review Digest",
-    price: 1200,
+    priceMist: 1200000000,
     users: 218,
     likes: 94,
     creator: "devkim",
@@ -92,7 +93,7 @@ const FEATURED_WORKFLOWS: Workflow[] = [
   {
     id: "invoice-parser",
     name: "Invoice Extractor",
-    price: 1800,
+    priceMist: 1800000000,
     users: 176,
     likes: 71,
     creator: "ledgerlab",
@@ -106,7 +107,7 @@ const FEATURED_WORKFLOWS: Workflow[] = [
   {
     id: "meeting-notes",
     name: "Meeting Recap",
-    price: 900,
+    priceMist: 900000000,
     users: 412,
     likes: 155,
     creator: "Seongwoo Lee",
@@ -120,7 +121,7 @@ const FEATURED_WORKFLOWS: Workflow[] = [
   {
     id: "token-price-alert",
     name: "Token Watchlist",
-    price: 600,
+    priceMist: 600000000,
     users: 289,
     likes: 103,
     creator: "onchain_anna",
@@ -137,7 +138,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "resume-screener",
     name: "Resume Screener",
-    price: 1500,
+    priceMist: 1500000000,
     users: 531,
     likes: 214,
     creator: "hrstack",
@@ -152,7 +153,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "competitor-watch",
     name: "Competitor Watch",
-    price: 2200,
+    priceMist: 2200000000,
     users: 468,
     likes: 187,
     creator: "marketmoss",
@@ -167,7 +168,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "ticket-router",
     name: "Support Triage",
-    price: 1100,
+    priceMist: 1100000000,
     users: 403,
     likes: 169,
     creator: "deskflow",
@@ -182,7 +183,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "review-digest",
     name: "Review Digest",
-    price: 800,
+    priceMist: 800000000,
     users: 377,
     likes: 141,
     creator: "voiceofuser",
@@ -197,7 +198,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "sentiment-tracker",
     name: "Sentiment Tracker",
-    price: 1400,
+    priceMist: 1400000000,
     users: 342,
     likes: 128,
     creator: "pulsehq",
@@ -212,7 +213,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "seo-keyword-report",
     name: "Keyword Report",
-    price: 1700,
+    priceMist: 1700000000,
     users: 298,
     likes: 112,
     creator: "rankcraft",
@@ -227,7 +228,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "standup-bot",
     name: "Standup Collector",
-    price: 500,
+    priceMist: 500000000,
     users: 264,
     likes: 96,
     creator: "devkim",
@@ -242,7 +243,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "contract-risk",
     name: "Contract Reader",
-    price: 2500,
+    priceMist: 2500000000,
     users: 231,
     likes: 88,
     creator: "clausecheck",
@@ -257,7 +258,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "translation-pipeline",
     name: "Doc Translator",
-    price: 1300,
+    priceMist: 1300000000,
     users: 205,
     likes: 79,
     creator: "linguaflow",
@@ -272,7 +273,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "filing-digest",
     name: "Filing Digest",
-    price: 2100,
+    priceMist: 2100000000,
     users: 188,
     likes: 64,
     creator: "quantdesk",

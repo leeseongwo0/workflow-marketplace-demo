@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search as SearchIcon } from "lucide-react";
+import { formatSui } from "../lib/sui-amount";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 export default function Search() {
@@ -84,7 +85,7 @@ export default function Search() {
                   className="w-full flex items-center justify-between rounded-xl px-4 py-3 hover:bg-panel text-left transition"
                 >
                   <span>{workflow.name}</span>
-                  <span className="text-muted text-sm">${workflow.price}</span>
+                  <span className="text-muted text-sm">{formatSui(workflow.priceMist)}</span>
                 </button>
               </li>
             ))}
