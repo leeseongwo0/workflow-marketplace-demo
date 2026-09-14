@@ -1,9 +1,11 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 export default function WorkflowDetail() {
   const { workflowId } = useParams<{ workflowId: string }>();
+  const location = useLocation();
   const workflow = useWorkflowStore((s) => s.workflows.find((w) => w.id === workflowId));
+  const cameFromSearch = (location.state as { from?: string } | null)?.from === "search";
 
   if (!workflow) {
     return (
@@ -23,12 +25,14 @@ export default function WorkflowDetail() {
 
   return (
     <div className="min-h-screen bg-ink text-white">
-      <Link
-        to="/marketplace"
-        className="inline-block text-muted hover:text-white text-sm mb-8"
-      >
-        ← Marketplace로 돌아가기
-      </Link>
+      {cameFromSearch && (
+        <Link
+          to="/search"
+          className="inline-block text-muted hover:text-white text-sm mb-8"
+        >
+          ← Back
+        </Link>
+      )}
 
       <div className="max-w-3xl mx-auto">
         <div className="flex items-start justify-between gap-8">

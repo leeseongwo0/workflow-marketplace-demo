@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Search as SearchIcon } from "lucide-react";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 export default function Search() {
@@ -32,14 +33,14 @@ export default function Search() {
       <div className="max-w-2xl mx-auto">
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/marketplace")}
           className="text-muted hover:text-white text-sm mb-6"
         >
           ← Back
         </button>
 
         <div className="flex items-center gap-3 rounded-full bg-panel border border-line px-5 py-3.5 mb-10">
-          <span aria-hidden="true">🔍</span>
+          <SearchIcon className="h-4 w-4 text-white" aria-hidden="true" />
           <input
             ref={inputRef}
             value={query}
@@ -57,7 +58,7 @@ export default function Search() {
                 <li key={workflow.id}>
                   <button
                     type="button"
-                    onClick={() => navigate(`/marketplace/${workflow.id}`)}
+                    onClick={() => navigate(`/marketplace/${workflow.id}`, { state: { from: "search" } })}
                     className="w-full flex items-center gap-4 rounded-xl px-4 py-3 hover:bg-panel text-left transition"
                   >
                     <span className="text-mint font-bold w-6">{workflow.rank}</span>
@@ -79,7 +80,7 @@ export default function Search() {
               <li key={workflow.id}>
                 <button
                   type="button"
-                  onClick={() => navigate(`/marketplace/${workflow.id}`)}
+                  onClick={() => navigate(`/marketplace/${workflow.id}`, { state: { from: "search" } })}
                   className="w-full flex items-center justify-between rounded-xl px-4 py-3 hover:bg-panel text-left transition"
                 >
                   <span>{workflow.name}</span>

@@ -3,14 +3,15 @@ import { Link, Outlet } from "react-router-dom";
 import { useWalletStore, truncateAddress } from "../../stores/wallet-store";
 import { WalletModal } from "../WalletModal";
 
-export function Layout() {
-  const { connected, address } = useWalletStore();
-  const [showWalletModal, setShowWalletModal] = useState(false);
+// TEMP_LOGIN: fixed mock address used to bypass the wallet modal for local
+// testing of the Profile page. To restore the real connect flow, change
+// `onClick={handleGetStarted}` below back to `onClick={() => setShowWalletModal(true)}`.
+const TEMP_PROFILE_ADDRESS = "0xtempprofile00000000000000000000000000000000000000000000000000";
 
-  const handleConnect = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setShowWalletModal(true);
-  };
+export function Layout() {
+  const { connected, address, connect } = useWalletStore();
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const handleGetStarted = () => connect(TEMP_PROFILE_ADDRESS);
 
   return (
     <div className="min-h-screen bg-panel text-ink">
@@ -25,9 +26,6 @@ export function Layout() {
             </Link>
 
             <nav className="flex items-center gap-6">
-              <Link to="/marketplace" className="text-white text-sm font-medium hover:text-mint">
-                Marketplace
-              </Link>
               <Link to="/profile" className="text-white text-sm font-medium hover:text-mint">
                 Profile
               </Link>
@@ -35,15 +33,11 @@ export function Layout() {
                 Register
               </Link>
               <button
-                onClick={handleConnect}
-                className="text-white text-sm font-medium hover:text-mint flex items-center gap-2"
+                type="button"
+                onClick={handleGetStarted}
+                className="rounded-2xl bg-blue px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-blue/20 hover:opacity-90 transition"
               >
-                <span className="status-dot status-dot--offline" />
-                {connected && address ? (
-                  truncateAddress(address)
-                ) : (
-                  "Connect Wallet"
-                )}
+                {connected && address ? truncateAddress(address) : "Get Started"}
               </button>
             </nav>
           </div>
