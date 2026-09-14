@@ -39,6 +39,7 @@ type WorkflowState = {
   likedWorkflowIds: string[];
   comments: WorkflowComment[];
   addWorkflow: (workflow: Workflow) => void;
+  updateWorkflow: (workflowId: string, patch: Partial<Workflow>) => void;
   purchaseWorkflow: (workflowId: string) => void;
   isPurchased: (workflowId: string) => boolean;
   toggleLike: (workflowId: string) => void;
@@ -304,6 +305,12 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   addWorkflow: (workflow: Workflow) =>
     set((state) => ({
       workflows: [workflow, ...state.workflows],
+    })),
+  updateWorkflow: (workflowId: string, patch: Partial<Workflow>) =>
+    set((state) => ({
+      workflows: state.workflows.map((workflow) =>
+        workflow.id === workflowId ? { ...workflow, ...patch } : workflow,
+      ),
     })),
   purchaseWorkflow: (workflowId: string) =>
     set((state) => ({

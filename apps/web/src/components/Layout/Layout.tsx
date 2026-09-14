@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useCurrentAccount, useCurrentNetwork, useDAppKit } from "@mysten/dapp-kit-react";
 import { truncateAddress } from "../../lib/address";
+import { useLoadLiveRelease } from "../../live/live-release";
 import { useToast } from "../Toast/ToastProvider";
 import { WalletModal } from "../WalletModal";
 
@@ -12,6 +13,8 @@ export function Layout() {
   const location = useLocation();
   const addToast = useToast().addToast;
   const [showWalletModal, setShowWalletModal] = useState(false);
+
+  useLoadLiveRelease();
 
   const handleGetStarted = () => {
     if (account === null) {
