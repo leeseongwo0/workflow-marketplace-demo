@@ -1,3 +1,10 @@
+/**
+ * Not routed. This was the `/app` demo screen before the marketplace UI
+ * replaced it, and it is kept because it is the only place where the on-chain
+ * purchase → challenge → execute → receipt flow actually works end to end
+ * against Testnet. The new screens are being wired to the same `live/` helpers,
+ * so treat this as the reference until that migration is finished, then delete it.
+ */
 import { useEffect, useRef, useState } from "react";
 import {
   useCurrentAccount,

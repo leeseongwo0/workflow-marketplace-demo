@@ -1,3 +1,8 @@
+/**
+ * Not routed. The old `/` landing page, replaced by the marketplace UI.
+ * Kept only as a copy/design reference; safe to delete once nothing is
+ * being lifted from it.
+ */
 const PROOF_POINTS = [
   {
     number: "01",
