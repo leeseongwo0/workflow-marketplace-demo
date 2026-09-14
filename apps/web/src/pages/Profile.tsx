@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Heart, MessageCircle, Play, User, Users } from "lucide-react";
-import { useWalletStore } from "../stores/wallet-store";
+import { truncateAddress } from "../lib/address";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 // TEMP mock profile data — replace with real purchase/registration data
 // once the backend is wired up. Any connected wallet currently sees the
 // same fixed lists below.
-const MOCK_NICKNAME = "Test User";
 const MOCK_PURCHASED_IDS = ["workflow-a", "workflow-b", "workflow-c", "workflow-d"];
 const MOCK_REGISTERED_IDS = ["workflow-1", "workflow-2", "workflow-3", "workflow-4"];
 
@@ -15,11 +15,11 @@ type ProfileTab = "purchased" | "registered";
 
 export default function Profile() {
   const navigate = useNavigate();
-  const connected = useWalletStore((s) => s.connected);
+  const account = useCurrentAccount();
   const workflows = useWorkflowStore((s) => s.workflows);
   const [tab, setTab] = useState<ProfileTab>("purchased");
 
-  if (!connected) {
+  if (account === null) {
     return (
       <div className="min-h-screen bg-ink text-white flex items-center justify-center">
         <p className="text-muted">로그인 정보 없음</p>
@@ -43,7 +43,9 @@ export default function Profile() {
         <div className="h-16 w-16 flex-shrink-0 rounded-full border-2 border-line bg-panel flex items-center justify-center">
           <User className="h-8 w-8 text-muted" aria-hidden="true" />
         </div>
-        <span className="text-xl font-semibold">{MOCK_NICKNAME}</span>
+        <span className="text-xl font-semibold">
+          {account.label ?? truncateAddress(account.address)}
+        </span>
       </div>
 
       <div className="flex gap-3 mb-8">

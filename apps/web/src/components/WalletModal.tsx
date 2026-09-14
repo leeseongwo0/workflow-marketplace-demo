@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useWalletStore } from "../stores/wallet-store";
+import type { UiWallet } from "@mysten/dapp-kit-react";
+import { useDAppKit, useWallets } from "@mysten/dapp-kit-react";
+import { X } from "lucide-react";
 import { useToast } from "./Toast/ToastProvider";
 
 interface WalletModalProps {
@@ -7,87 +9,82 @@ interface WalletModalProps {
   onClose: () => void;
 }
 
-interface WalletOption {
-  id: string;
-  name: string;
-  icon: string;
-}
-
-const walletOptions: WalletOption[] = [
-  { id: "sui-wallet", name: "Sui Wallet", icon: "🦎" },
-  { id: "suiet", name: "Suiet", icon: "👻" },
-  { id: "ethos", name: "Ethos", icon: "⚡" },
-  { id: "nightly", name: "Nightly", icon: "🌙" },
-];
-
 export function WalletModal({ show, onClose }: WalletModalProps) {
-  const [loadingWallet, setLoadingWallet] = useState<string | null>(null);
-  const connectWallet = useWalletStore((s) => s.connectWallet);
+  const dAppKit = useDAppKit();
+  const wallets = useWallets();
+  const [connectingWallet, setConnectingWallet] = useState<string | null>(null);
   const addToast = useToast().addToast;
 
   if (!show) return null;
 
-  const handleWalletClick = async (walletId: string) => {
-    setLoadingWallet(walletId);
-    
+  const handleWalletClick = async (wallet: UiWallet) => {
+    setConnectingWallet(wallet.name);
     try {
-      // Simulate wallet connection for demo purposes
-      // In a real app, this would trigger actual wallet connection
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      await connectWallet();
-      addToast(`${walletOptions.find(w => w.id === walletId)?.name} connected successfully!`, "success");
+      await dAppKit.connectWallet({ wallet });
+      addToast(`${wallet.name} connected successfully!`, "success");
       onClose();
-    } catch (error) {
+    } catch {
       addToast("Failed to connect wallet. Please try again.", "error");
     } finally {
-      setLoadingWallet(null);
+      setConnectingWallet(null);
     }
   };
 
   return (
-    <div className="demo-modal-backdrop" onClick={onClose}>
-      <div 
-        className="demo-modal" 
-        onClick={(e) => e.stopPropagation()}
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-black/70 backdrop-blur-sm p-5"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl border border-line bg-panel p-6 text-white shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
       >
-        <div className="demo-modal-heading">
-          <h2>Connect Wallet</h2>
-          <button 
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="text-xl font-bold">Connect Wallet</h2>
+          <button
+            type="button"
             onClick={onClose}
-            className="demo-modal-close"
             aria-label="Close modal"
+            className="text-muted hover:text-white transition"
           >
-            ✕
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
-        
-        <p className="demo-modal-description">
+
+        <p className="text-sm text-muted mt-2 mb-6">
           Choose a wallet provider to connect to the marketplace
         </p>
-        
-        <div className="space-y-3">
-          {walletOptions.map((wallet) => (
-            <button
-              key={wallet.id}
-              onClick={() => handleWalletClick(wallet.id)}
-              disabled={!!loadingWallet}
-              className="demo-wallet-button w-full justify-start"
-            >
-              {loadingWallet === wallet.id ? (
-                <span className="spinner w-4 h-4 mr-3" />
-              ) : (
-                <span className="text-lg mr-3">{wallet.icon}</span>
-              )}
-              <span>{wallet.name}</span>
-            </button>
-          ))}
-        </div>
-        
-        <div className="mt-6 pt-4 border-t border-gray-700">
-          <p className="text-xs text-gray-500 text-center">
-            Wallet connection is simulated for demonstration purposes
+
+        {wallets.length === 0 ? (
+          <p className="text-sm text-muted text-center py-6">
+            설치된 Sui 지갑을 찾지 못했습니다. 브라우저에 Sui 지갑 확장 프로그램을
+            설치한 뒤 이 페이지를 새로고침해 주세요.
           </p>
-        </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {wallets.map((wallet) => (
+              <button
+                key={wallet.name}
+                type="button"
+                onClick={() => void handleWalletClick(wallet)}
+                disabled={connectingWallet !== null}
+                className="flex w-full items-center gap-3 rounded-xl border border-line px-4 py-3 text-left font-medium hover:border-mint transition disabled:opacity-50"
+              >
+                {connectingWallet === wallet.name ? (
+                  <span className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-white" />
+                ) : (
+                  <img
+                    src={wallet.icon}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-6 w-6 rounded"
+                  />
+                )}
+                <span>{wallet.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,17 +1,25 @@
 import { useState } from "react";
 import { Link, Outlet } from "react-router-dom";
-import { useWalletStore, truncateAddress } from "../../stores/wallet-store";
+import { useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
+import { truncateAddress } from "../../lib/address";
+import { useToast } from "../Toast/ToastProvider";
 import { WalletModal } from "../WalletModal";
 
-// TEMP_LOGIN: fixed mock address used to bypass the wallet modal for local
-// testing of the Profile page. To restore the real connect flow, change
-// `onClick={handleGetStarted}` below back to `onClick={() => setShowWalletModal(true)}`.
-const TEMP_PROFILE_ADDRESS = "0xtempprofile00000000000000000000000000000000000000000000000000";
-
 export function Layout() {
-  const { connected, address, connect } = useWalletStore();
+  const account = useCurrentAccount();
+  const dAppKit = useDAppKit();
+  const addToast = useToast().addToast;
   const [showWalletModal, setShowWalletModal] = useState(false);
-  const handleGetStarted = () => connect(TEMP_PROFILE_ADDRESS);
+
+  const handleGetStarted = () => {
+    if (account === null) {
+      setShowWalletModal(true);
+      return;
+    }
+    dAppKit.disconnectWallet().catch(() => {
+      addToast("Failed to disconnect wallet. Please try again.", "error");
+    });
+  };
 
   return (
     <div className="min-h-screen bg-panel text-ink">
@@ -35,9 +43,10 @@ export function Layout() {
               <button
                 type="button"
                 onClick={handleGetStarted}
+                title={account === null ? undefined : "클릭하면 지갑 연결이 해제됩니다"}
                 className="rounded-2xl bg-blue px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-blue/20 hover:opacity-90 transition"
               >
-                {connected && address ? truncateAddress(address) : "Get Started"}
+                {account === null ? "Get Started" : truncateAddress(account.address)}
               </button>
             </nav>
           </div>
