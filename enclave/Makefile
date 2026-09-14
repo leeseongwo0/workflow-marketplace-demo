@@ -13,7 +13,13 @@ default: out/nitro.eif
 out:
 	mkdir -p out
 
-out/nitro.eif: $(shell git ls-files src) | out
+# Context is the repo root, not this directory: aiwf-executor's Containerfile
+# stage needs to see apps/executor and packages/*, which live outside
+# enclave/. Dependency list covers this app's own Rust source plus whatever
+# executor code and Containerfile/run.sh changes would need a fresh EIF.
+DEPS := $(shell git -C .. ls-files enclave/src enclave/Containerfile enclave/configure_enclave.sh apps/executor packages/shared packages/workflow-google-news pnpm-lock.yaml pnpm-workspace.yaml | sed 's,^,../,')
+
+out/nitro.eif: $(DEPS) | out
 	docker build \
 		--pull \
 		--tag $(REGISTRY)/enclaveos \
@@ -23,7 +29,7 @@ out/nitro.eif: $(shell git ls-files src) | out
 		--output type=local,rewrite-timestamp=true,dest=out\
 		-f Containerfile \
 		--build-arg ENCLAVE_APP=$(ENCLAVE_APP) \
-		.
+		..
 
 .PHONY: run
 run: out/nitro.eif

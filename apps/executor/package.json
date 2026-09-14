@@ -7,6 +7,7 @@
     "e2e:testnet": "node --env-file-if-exists=../../.env --import tsx scripts/run-testnet-e2e.ts",
     "generate-key": "tsx scripts/generate-executor-key.ts",
     "start": "node --env-file-if-exists=../../.env --import tsx src/start.ts",
+    "bundle": "node scripts/bundle.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
   },
@@ -18,5 +19,8 @@
     "@mysten/sui": "2.29.0",
     "fastify": "5.12.1",
     "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

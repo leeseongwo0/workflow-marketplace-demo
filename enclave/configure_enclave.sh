@@ -619,16 +619,20 @@ socat VSOCK-LISTEN:3001,reuseaddr,fork TCP:localhost:3001 &' src/nautilus-server
         sed -i '' '/^\/nautilus-server$/i\
 \
 # For aiwf-executor: launch the Node executor as a sibling process. It\
-# inherits the secrets exported above (EXECUTOR_PRIVATE_KEY etc.) via the\
-# existing VSOCK 7777 secrets mechanism.\
-node /aiwf-executor/dist/start.js \&' src/nautilus-server/run.sh
+# inherits SUI_GRPC_URL, SUI_PACKAGE_ID, WALRUS_AGGREGATOR_URL, CORS_ORIGIN\
+# etc. exported above via the existing VSOCK 7777 secrets mechanism.\
+# ENCLAVE_IDENTITY_KEY_PATH is fixed here (not admin-provided) so it always\
+# matches where main.rs writes the key.\
+ENCLAVE_IDENTITY_KEY_PATH=/tmp/enclave-identity.key node /aiwf-executor/start.mjs \&' src/nautilus-server/run.sh
     else
         sed -i '/^\/nautilus-server$/i\
 \
 # For aiwf-executor: launch the Node executor as a sibling process. It\
-# inherits the secrets exported above (EXECUTOR_PRIVATE_KEY etc.) via the\
-# existing VSOCK 7777 secrets mechanism.\
-node /aiwf-executor/dist/start.js \&' src/nautilus-server/run.sh
+# inherits SUI_GRPC_URL, SUI_PACKAGE_ID, WALRUS_AGGREGATOR_URL, CORS_ORIGIN\
+# etc. exported above via the existing VSOCK 7777 secrets mechanism.\
+# ENCLAVE_IDENTITY_KEY_PATH is fixed here (not admin-provided) so it always\
+# matches where main.rs writes the key.\
+ENCLAVE_IDENTITY_KEY_PATH=/tmp/enclave-identity.key node /aiwf-executor/start.mjs \&' src/nautilus-server/run.sh
     fi
     echo "Added Node executor launch for aiwf-executor"
 fi

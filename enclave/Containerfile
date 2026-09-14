@@ -54,14 +54,31 @@ COPY --from=user-linux-nitro /bzImage .
 COPY --from=user-linux-nitro /linux.config .
 
 FROM base AS build
+# Context is the repo root (see enclave/Makefile), so this app's own code
+# lives under /enclave, alongside /apps and /packages.
 COPY . .
 
-WORKDIR /src/nautilus-server
+WORKDIR /enclave/src/nautilus-server
 ENV OPENSSL_STATIC=true
 ENV TARGET=x86_64-unknown-linux-musl
 ARG ENCLAVE_APP
 ENV RUSTFLAGS="-C target-feature=+crt-static -C relocation-model=static -C target-cpu=x86-64"
 RUN cargo build --locked --no-default-features --features $ENCLAVE_APP --release --target "$TARGET"
+
+# aiwf-executor only: bundle apps/executor into one dependency-free file
+# instead of copying node_modules (pnpm's node_modules/.pnpm symlink layout
+# doesn't survive a plain COPY well). Runs from the repo root so pnpm can
+# see the whole workspace graph.
+WORKDIR /
+RUN <<-EOF
+    set -eux
+    if [ "$ENCLAVE_APP" = "aiwf-executor" ]; then
+        corepack enable
+        corepack prepare pnpm@11.22.0 --activate
+        pnpm install --frozen-lockfile --filter @aiwf/executor...
+        pnpm --filter @aiwf/executor bundle
+    fi
+EOF
 
 WORKDIR /build_cpio
 ENV KBUILD_BUILD_TIMESTAMP=1
@@ -77,18 +94,18 @@ COPY --from=user-jq /bin/jq initramfs
 COPY --from=user-socat /bin/socat . initramfs
 COPY --from=user-nit /bin/init initramfs
 COPY --from=core-nodejs . initramfs
-RUN cp /src/nautilus-server/target/${TARGET}/release/nautilus-server initramfs
-RUN cp /src/nautilus-server/traffic_forwarder.py initramfs/
-RUN cp /src/nautilus-server/run.sh initramfs/
+RUN cp /enclave/src/nautilus-server/target/${TARGET}/release/nautilus-server initramfs
+RUN cp /enclave/src/nautilus-server/traffic_forwarder.py initramfs/
+RUN cp /enclave/src/nautilus-server/run.sh initramfs/
 
-# TODO(aiwf-executor): copy the built apps/executor bundle from
-# workflow-marketplace-demo into initramfs/aiwf-executor/ here (e.g.
-# `RUN cp -r /aiwf-executor initramfs/`). This needs a staging step before
-# `docker build` that places the executor's compiled JS + node_modules
-# somewhere inside this build context (nautilus is a separate repo/checkout
-# from workflow-marketplace-demo, so it isn't visible to this Containerfile
-# automatically) — decide with the team whether that's a copy script, a
-# git submodule, or moving this Containerfile into the team repo instead.
+# aiwf-executor only: install the bundled Node executor built above.
+RUN <<-EOF
+    set -eux
+    if [ "$ENCLAVE_APP" = "aiwf-executor" ]; then
+        mkdir -p initramfs/aiwf-executor
+        cp /apps/executor/dist/start.mjs initramfs/aiwf-executor/start.mjs
+    fi
+EOF
 
 COPY <<-EOF initramfs/etc/environment
 SSL_CERT_FILE=/ca-certificates.crt

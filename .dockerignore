@@ -1,0 +1,13 @@
+# Build context for enclave/Containerfile is the repo root (see
+# enclave/Makefile). Everything here is safe to exclude: node_modules is
+# reinstalled inside the build (pnpm install --filter), and these
+# directories/files are irrelevant to the enclave image.
+.git
+**/node_modules
+**/dist
+**/.turbo
+enclave/out
+enclave/src/nautilus-server/target
+fixtures
+docs
+*.md
