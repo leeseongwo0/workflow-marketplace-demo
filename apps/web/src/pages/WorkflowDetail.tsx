@@ -2,9 +2,12 @@ import { useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Heart, MessageCircle, Users } from "lucide-react";
+import { PurchaseModal } from "../components/PurchaseModal";
 import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
 import { useToast } from "../components/Toast/ToastProvider";
 import { formatSui } from "../lib/sui-amount";
+import { LIVE_WORKFLOW_ID } from "../live/live-release";
+import { usePurchaseLicense } from "../live/use-purchase-license";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 export default function WorkflowDetail() {
@@ -25,6 +28,8 @@ export default function WorkflowDetail() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [showPurchase, setShowPurchase] = useState(false);
+  const purchase = usePurchaseLicense();
   const cameFromSearch = (location.state as { from?: string } | null)?.from === "search";
 
   if (!workflow) {
@@ -61,9 +66,21 @@ export default function WorkflowDetail() {
     addToast("후기를 삭제했습니다.", "info");
   };
 
+  // Only the google-news-rss entry exists on chain; the rest of the catalog is
+  // demo dressing and has nothing to buy.
+  const purchasable = workflow.id === LIVE_WORKFLOW_ID;
+
   const handlePurchaseClick = () => {
-    // Payment flow is implemented in a later round; placeholder for now.
-    console.log("purchase clicked", workflow.id);
+    if (!purchasable) {
+      addToast("이 워크플로는 화면 구성용 샘플입니다. 실제 구매는 준비 중입니다.", "info");
+      return;
+    }
+    if (account === null) {
+      addToast("먼저 지갑을 연결해 주세요.", "info");
+      return;
+    }
+    purchase.reset();
+    setShowPurchase(true);
   };
 
   return (
@@ -245,6 +262,17 @@ export default function WorkflowDetail() {
           )}
         </section>
       </div>
+
+      {showPurchase && (
+        <PurchaseModal
+          workflow={workflow}
+          status={purchase.status}
+          failureMessage={purchase.failureMessage}
+          digest={purchase.digest}
+          onPurchase={() => void purchase.purchase()}
+          onClose={() => setShowPurchase(false)}
+        />
+      )}
     </div>
   );
 }

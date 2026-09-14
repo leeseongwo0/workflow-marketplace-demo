@@ -1,0 +1,157 @@
+import { useState } from "react";
+import { useCurrentAccount, useCurrentClient, useCurrentNetwork, useDAppKit } from "@mysten/dapp-kit-react";
+
+import { useWorkflowStore } from "../stores/workflow-store";
+import { webConfig } from "./config";
+import { LIVE_WORKFLOW_ID, useLiveReleaseStore } from "./live-release";
+import { findOwnedLicense } from "./sui-objects";
+import { buildPurchaseLicenseTransaction } from "./transactions";
+
+/**
+ * "confirming" is separate from "signing" on purpose: the wallet returning a
+ * signature does not mean the license exists. Nothing is reported as purchased
+ * until the LicensePass is actually readable from chain.
+ */
+export type PurchaseStatus =
+  | "idle"
+  | "signing"
+  | "confirming"
+  | "success"
+  | "error";
+
+export type PurchaseFailure =
+  | "rejected"
+  | "insufficient_funds"
+  | "already_owned"
+  | "wrong_network"
+  | "not_ready"
+  | "unknown";
+
+const FAILURE_MESSAGES: Record<PurchaseFailure, string> = {
+  rejected: "지갑에서 서명을 취소했습니다.",
+  insufficient_funds: "테스트넷 SUI 잔액이 부족합니다. faucet으로 충전한 뒤 다시 시도해 주세요.",
+  already_owned: "이미 이 워크플로의 라이선스를 보유하고 있습니다.",
+  wrong_network: "지갑이 testnet에 연결되어 있지 않습니다.",
+  not_ready: "온체인 정보를 아직 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+  unknown: "구매를 완료하지 못했습니다.",
+};
+
+function classify(cause: unknown): PurchaseFailure {
+  const message = (cause instanceof Error ? cause.message : String(cause)).toLowerCase();
+  if (message.includes("reject") || message.includes("denied") || message.includes("cancel")) {
+    return "rejected";
+  }
+  if (message.includes("insufficient") || message.includes("balance") || message.includes("gas")) {
+    return "insufficient_funds";
+  }
+  if (message.includes("already")) return "already_owned";
+  return "unknown";
+}
+
+async function findLicenseWithRetry(input: Parameters<typeof findOwnedLicense>[0]) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const license = await findOwnedLicense(input);
+    if (license !== undefined) return license;
+    if (attempt < 3) {
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 750));
+    }
+  }
+  return undefined;
+}
+
+export function usePurchaseLicense() {
+  const account = useCurrentAccount();
+  const client = useCurrentClient();
+  const network = useCurrentNetwork();
+  const dAppKit = useDAppKit();
+  const release = useLiveReleaseStore((s) => s.release);
+  const purchaseWorkflow = useWorkflowStore((s) => s.purchaseWorkflow);
+
+  const [status, setStatus] = useState<PurchaseStatus>("idle");
+  const [failure, setFailure] = useState<PurchaseFailure | undefined>(undefined);
+  const [digest, setDigest] = useState<string | undefined>(undefined);
+
+  const reset = () => {
+    setStatus("idle");
+    setFailure(undefined);
+    setDigest(undefined);
+  };
+
+  const fail = (reason: PurchaseFailure) => {
+    setFailure(reason);
+    setStatus("error");
+  };
+
+  const purchase = async () => {
+    if (account === null || webConfig.mode !== "live" || release === undefined) {
+      fail("not_ready");
+      return;
+    }
+    if (network !== "testnet") {
+      fail("wrong_network");
+      return;
+    }
+
+    setFailure(undefined);
+    setDigest(undefined);
+
+    try {
+      const owner = account.address;
+      const alreadyOwned = await findOwnedLicense({
+        client,
+        packageId: webConfig.packageId,
+        owner,
+        releaseId: release.id,
+      });
+      if (alreadyOwned !== undefined) {
+        fail("already_owned");
+        return;
+      }
+
+      setStatus("signing");
+      const result = await dAppKit.signAndExecuteTransaction({
+        transaction: buildPurchaseLicenseTransaction({
+          packageId: webConfig.packageId,
+          marketplaceId: webConfig.marketplaceId,
+          releaseId: release.id,
+          priceMist: release.priceMist,
+        }),
+        account,
+        network: "testnet",
+      });
+      if (result.$kind !== "Transaction") {
+        fail("unknown");
+        return;
+      }
+
+      setStatus("confirming");
+      setDigest(result.Transaction.digest);
+      const license = await findLicenseWithRetry({
+        client,
+        packageId: webConfig.packageId,
+        owner,
+        releaseId: release.id,
+      });
+      if (license === undefined) {
+        // The transaction landed but the object is not readable yet; treating
+        // this as success would show a license the user cannot use.
+        fail("not_ready");
+        return;
+      }
+
+      purchaseWorkflow(LIVE_WORKFLOW_ID);
+      setStatus("success");
+    } catch (cause) {
+      fail(classify(cause));
+    }
+  };
+
+  return {
+    status,
+    digest,
+    failureMessage: failure === undefined ? undefined : FAILURE_MESSAGES[failure],
+    failure,
+    purchase,
+    reset,
+  };
+}
