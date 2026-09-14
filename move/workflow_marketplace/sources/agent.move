@@ -28,6 +28,8 @@ module workflow_marketplace::agent {
         price_license: u64,
         price_fork: u64,
         royalty_bps: u64,
+        max_runs: Option<u64>,
+        max_duration_ms: Option<u64>,
         is_listed: bool,
         created_at: u64,
     }
@@ -71,6 +73,8 @@ module workflow_marketplace::agent {
         price_license: u64,
         price_fork: u64,
         royalty_bps: u64,
+        max_runs: Option<u64>,
+        max_duration_ms: Option<u64>,
         clock: &Clock,
         ctx: &mut TxContext,
     ): WorkflowRelease {
@@ -84,6 +88,8 @@ module workflow_marketplace::agent {
             price_license,
             price_fork,
             royalty_bps,
+            max_runs,
+            max_duration_ms,
             is_listed: true,
             created_at: clock.timestamp_ms(),
         }
@@ -109,6 +115,8 @@ module workflow_marketplace::agent {
     public fun release_price_license(release: &WorkflowRelease): u64 { release.price_license }
     public fun release_price_fork(release: &WorkflowRelease): u64 { release.price_fork }
     public fun release_royalty_bps(release: &WorkflowRelease): u64 { release.royalty_bps }
+    public fun release_max_runs(release: &WorkflowRelease): Option<u64> { release.max_runs }
+    public fun release_max_duration_ms(release: &WorkflowRelease): Option<u64> { release.max_duration_ms }
     public fun release_is_listed(release: &WorkflowRelease): bool { release.is_listed }
 
     // ── package-internal constructor for fork releases ──
@@ -121,6 +129,8 @@ module workflow_marketplace::agent {
         price_license: u64,
         price_fork: u64,
         royalty_bps: u64,
+        max_runs: Option<u64>,
+        max_duration_ms: Option<u64>,
         clock: &Clock,
         ctx: &mut TxContext,
     ): WorkflowRelease {
@@ -134,6 +144,8 @@ module workflow_marketplace::agent {
             price_license,
             price_fork,
             royalty_bps,
+            max_runs,
+            max_duration_ms,
             is_listed: false,
             created_at: clock.timestamp_ms(),
         }
