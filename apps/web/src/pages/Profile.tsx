@@ -122,7 +122,7 @@ export default function Profile() {
             return (
               <div
                 key={workflow.id}
-                className="rounded-2xl bg-panel border border-line p-4 hover:border-mint transition"
+                className="fm-card fm-card-interactive p-4"
               >
                 <div
                   role="button"
@@ -234,7 +234,7 @@ export default function Profile() {
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") goToDetail(workflow.id);
               }}
-              className="flex items-center gap-4 rounded-2xl bg-panel border border-line p-4 hover:border-mint transition cursor-pointer"
+              className="fm-card fm-card-interactive flex items-center gap-4 p-4 cursor-pointer"
             >
               <WorkflowThumbnail workflow={workflow} />
               <div className="flex-1 min-w-0">

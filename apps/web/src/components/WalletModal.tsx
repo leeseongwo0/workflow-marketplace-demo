@@ -68,7 +68,7 @@ export function WalletModal({ show, onClose }: WalletModalProps) {
                 type="button"
                 onClick={() => void handleWalletClick(wallet)}
                 disabled={connectingWallet !== null}
-                className="flex w-full items-center gap-3 rounded-xl border border-line px-4 py-3 text-left font-medium hover:border-mint transition disabled:opacity-50"
+                className="fm-card fm-card-interactive flex w-full items-center gap-3 !rounded-xl px-4 py-3 text-left font-medium disabled:opacity-50"
               >
                 {connectingWallet === wallet.name ? (
                   <span className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-white" />

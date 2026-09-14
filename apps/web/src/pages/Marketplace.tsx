@@ -34,9 +34,9 @@ export default function Marketplace() {
       <button
         type="button"
         onClick={() => navigate("/search")}
-        className="w-full max-w-2xl mx-auto flex items-center gap-3 rounded-full bg-panel border border-line px-5 py-3.5 text-muted hover:text-white hover:border-mint transition mb-12"
+        className="fm-card fm-card-interactive w-full max-w-2xl mx-auto flex items-center gap-3 !rounded-full px-5 py-3.5 text-muted hover:text-white mb-12"
       >
-        <SearchIcon className="h-4 w-4 text-white" aria-hidden="true" />
+        <SearchIcon className="h-4 w-4" aria-hidden="true" />
         <span>Search workflows...</span>
       </button>
 
@@ -54,7 +54,7 @@ export default function Marketplace() {
                   navigate(`/marketplace/${workflow.id}`, { state: { from: "marketplace" } });
                 }
               }}
-              className="flex items-center gap-4 rounded-2xl bg-panel border border-line p-4 text-left hover:border-mint transition cursor-pointer"
+              className="fm-card fm-card-interactive flex items-center gap-4 p-4 text-left cursor-pointer"
             >
               <WorkflowThumbnail workflow={workflow} />
               <div className="flex-1 min-w-0">
@@ -65,8 +65,8 @@ export default function Marketplace() {
                   </span>
                 </div>
                 <div className="flex items-center justify-end gap-4 text-xs text-muted mt-2">
-                  <span className="flex items-center gap-1">
-                    <Users className="h-3.5 w-3.5 text-white" aria-hidden="true" />
+                  <span className="flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5" aria-hidden="true" />
                     {workflow.users}
                   </span>
                   <button
@@ -77,10 +77,10 @@ export default function Marketplace() {
                     }}
                     aria-pressed={liked}
                     aria-label={liked ? "좋아요 취소" : "좋아요"}
-                    className="flex items-center gap-1 hover:text-white"
+                    className="flex items-center gap-1.5 hover:text-white"
                   >
                     <Heart
-                      className={liked ? "h-3.5 w-3.5 text-red-500" : "h-3.5 w-3.5 text-white"}
+                      className={liked ? "h-3.5 w-3.5 text-red-500" : "h-3.5 w-3.5"}
                       fill={liked ? "currentColor" : "none"}
                       aria-hidden="true"
                     />

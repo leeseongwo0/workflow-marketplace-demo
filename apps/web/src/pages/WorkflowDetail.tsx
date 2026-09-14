@@ -99,7 +99,7 @@ export default function WorkflowDetail() {
       )}
 
       <div className="max-w-3xl mx-auto">
-        <div className="flex items-start justify-between gap-8">
+        <div className="flex items-start justify-between gap-8 mb-2">
           <div>
             <h1 className="text-3xl font-bold mb-4">{workflow.name}</h1>
             <div className="flex items-center gap-5 text-sm text-muted mb-5">
@@ -127,7 +127,7 @@ export default function WorkflowDetail() {
             <button
               type="button"
               onClick={handlePurchaseClick}
-              className="rounded-xl bg-blue px-6 py-2.5 text-lg font-semibold text-white hover:opacity-90 transition"
+              className="rounded-2xl bg-blue px-7 py-3.5 text-lg font-bold text-white shadow-lg shadow-blue/20 hover:opacity-90"
             >
               {formatSui(workflow.priceMist)}
             </button>
@@ -139,7 +139,7 @@ export default function WorkflowDetail() {
           />
         </div>
 
-        <div className="flex items-start gap-10 mt-12 pt-6 border-t border-line">
+        <div className="flex items-start gap-10 mt-10 pt-6 border-t border-line">
           <div className="flex-shrink-0">
             <p className="text-muted text-sm">Created by</p>
             <p className="font-semibold mb-4">{workflow.creator}</p>

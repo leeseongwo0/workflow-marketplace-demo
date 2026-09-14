@@ -2,14 +2,25 @@
 @import "./styles.css";
 
 @theme {
-  --color-ink: #07100e;
+  /*
+   * Surfaces are neutral rather than green-tinted: a near-black page with one
+   * raised panel step, so type and the accent colour carry the hierarchy
+   * instead of the background doing it.
+   */
+  --color-ink: #0b0d10;
+  --color-panel: #14171c;
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-muted: #8b94a3;
+
   --color-paper: #f1f5ee;
   --color-mint: #79f2bd;
   --color-lime: #cef66a;
-  --color-blue: #2563eb;
-  --color-muted: #98a79f;
-  --color-line: rgba(227, 242, 232, 0.15);
-  --color-panel: #0b1714;
+  --color-blue: #3182f6;
+
+  --font-sans:
+    "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", Roboto,
+    "Helvetica Neue", sans-serif;
 
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-press: 90ms;
@@ -22,6 +33,35 @@
  * component having to opt in, so new screens inherit it automatically.
  */
 @layer base {
+  /*
+   * The legacy stylesheet paints a green radial glow and a 72px grid over the
+   * page. Replaced with a flat surface so cards read as the only raised
+   * elements; the grid competed with them at small sizes.
+   */
+  :root,
+  body {
+    background: var(--color-ink);
+    background-image: none;
+    color: #e8eaed;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.011em;
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.024em;
+  }
+
+  /* Prices and counts stop shifting width as digits change. */
+  .tabular,
+  dd,
+  time {
+    font-variant-numeric: tabular-nums;
+  }
+
   button,
   a,
   [role="button"],
@@ -48,9 +88,9 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-mint);
+    outline: 2px solid var(--color-blue);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: 6px;
   }
 }
 
@@ -107,6 +147,21 @@
 
 .fm-toast-leave {
   animation: fm-slide-out-right var(--duration-exit) var(--ease-out-soft) both;
+}
+
+/*
+ * Row/card surface. Hover lifts the surface instead of tinting the border,
+ * which kept reading as a state change rather than "this is clickable".
+ */
+.fm-card {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+}
+
+.fm-card-interactive:hover {
+  background: #1a1e25;
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 @media (prefers-reduced-motion: reduce) {
