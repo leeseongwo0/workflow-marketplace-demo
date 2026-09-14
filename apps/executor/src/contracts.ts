@@ -8,6 +8,12 @@ export interface KeyProvider {
     releaseId: string;
     licenseId: string;
     runnerAddress: string;
+    /**
+     * Opaque per-request auth handle only Seal-backed providers understand
+     * (a completed @mysten/seal SessionKey signed by runnerAddress).
+     * LocalDemoKeyProvider ignores this.
+     */
+    sealSession?: unknown;
   }): Promise<Uint8Array>;
 }
 

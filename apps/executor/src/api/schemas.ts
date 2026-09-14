@@ -10,6 +10,7 @@ export const executionChallengeRequestSchema = z.strictObject({
 export const executionRequestSchema = z.strictObject({
   challengeId: z.uuid(),
   walletSignature: z.string().min(1).max(8_192),
+  sealSessionSignature: z.string().min(1).max(8_192).optional(),
 });
 
 export type ExecutionChallengeRequest = z.infer<

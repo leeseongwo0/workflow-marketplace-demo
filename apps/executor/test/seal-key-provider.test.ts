@@ -15,12 +15,15 @@ const DEK = Uint8Array.from({ length: 32 }, (_value, index) => index + 1);
 const ENCRYPTED_DEK = Uint8Array.from([9, 9, 9]);
 const APPROVAL_TX_BYTES = Uint8Array.from([7, 7, 7]);
 
+const SEAL_SESSION = { fake: "session" };
+
 function request() {
   return {
     keyId: KEY_ID,
     releaseId: RELEASE_ID,
     licenseId: LICENSE_ID,
     runnerAddress: RUNNER_ADDRESS,
+    sealSession: SEAL_SESSION,
   };
 }
 
@@ -105,6 +108,7 @@ describe("SealKeyProvider", () => {
       encryptedDek: ENCRYPTED_DEK,
       approvalTxBytes: APPROVAL_TX_BYTES,
       runnerAddress: RUNNER_ADDRESS,
+      sealSession: SEAL_SESSION,
     });
   });
 
@@ -136,6 +140,34 @@ describe("SealKeyProvider", () => {
         }),
       }),
     );
+  });
+
+  it("fails closed when no sealSession is supplied, without contacting adapters", async () => {
+    let approvalCalled = false;
+    let encryptedDekCalled = false;
+    let decryptCalled = false;
+    const instance = provider({
+      approvalTransactions: fakeApprovalTransactions(async () => {
+        approvalCalled = true;
+        return APPROVAL_TX_BYTES;
+      }),
+      encryptedDeks: fakeEncryptedDeks(async () => {
+        encryptedDekCalled = true;
+        return ENCRYPTED_DEK;
+      }),
+      decryptor: fakeDecryptor(async () => {
+        decryptCalled = true;
+        return DEK;
+      }),
+    });
+
+    await expect(
+      instance.getDek({ ...request(), sealSession: undefined }),
+    ).rejects.toMatchObject({ code: "KEY_NOT_FOUND" });
+
+    expect(approvalCalled).toBe(false);
+    expect(encryptedDekCalled).toBe(false);
+    expect(decryptCalled).toBe(false);
   });
 
   it("rejects a decrypted key that is not exactly 32 bytes", async () => {

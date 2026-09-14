@@ -1,12 +1,9 @@
 import { SealClient, SessionKey } from "@mysten/seal";
-import type { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import type { SuiGrpcClient } from "@mysten/sui/grpc";
 import { normalizeSuiAddress } from "@mysten/sui/utils";
 
 import type { SealDecryptor } from "./seal-key-provider.js";
 import { ExecutorError } from "../errors.js";
-
-const SESSION_KEY_TTL_MIN = 10;
 
 export interface SealServerConfig {
   objectId: string;
@@ -14,30 +11,22 @@ export interface SealServerConfig {
 }
 
 /**
- * Real SealDecryptor backed by @mysten/seal's SealClient. The supplied signer
- * must own the LicensePass and match runnerAddress. Until the API transports a
- * runner-authorized Seal session, an executor-only signer fails closed here.
+ * Real SealDecryptor backed by @mysten/seal's SealClient.
  *
- * The SessionKey is created once and reused across requests until it
- * expires (SESSION_KEY_TTL_MIN), matching Seal's own performance guidance
- * to reuse both the SealClient and the SessionKey instance.
+ * This class does not create or hold its own session. It must be given a
+ * SessionKey already completed for the licensed runner's own address (see
+ * SuiSealSessionAuthority) — Seal's seal_approve dry-run resolves
+ * `ctx.sender()` from whoever signed the session, and only the runner owns
+ * the LicensePass being checked, so a session signed by anyone else
+ * (including the executor's own key) can never pass that check.
  */
 export class SealClientDecryptor implements SealDecryptor {
   readonly #client: SealClient;
-  readonly #signer: Ed25519Keypair;
-  readonly #suiClient: SuiGrpcClient;
-  readonly #packageId: string;
-  #sessionKey: SessionKey | undefined;
 
   constructor(input: {
     suiClient: SuiGrpcClient;
     serverConfigs: SealServerConfig[];
-    signer: Ed25519Keypair;
-    packageId: string;
   }) {
-    this.#suiClient = input.suiClient;
-    this.#signer = input.signer;
-    this.#packageId = input.packageId;
     this.#client = new SealClient({
       // The seal SealCompatibleClient shape is structurally satisfied by
       // SuiGrpcClient; cast at this single boundary rather than threading a
@@ -50,56 +39,39 @@ export class SealClientDecryptor implements SealDecryptor {
     });
   }
 
-  async #getSessionKey(): Promise<SessionKey> {
-    if (this.#sessionKey !== undefined && !this.#sessionKey.isExpired()) {
-      return this.#sessionKey;
-    }
-    this.#sessionKey = await SessionKey.create({
-      address: this.#signer.getPublicKey().toSuiAddress(),
-      packageId: this.#packageId,
-      ttlMin: SESSION_KEY_TTL_MIN,
-      signer: this.#signer,
-      suiClient: this.#suiClient as unknown as Parameters<
-        typeof SessionKey.create
-      >[0]["suiClient"],
-    });
-    return this.#sessionKey;
-  }
-
   async decrypt(input: {
     encryptedDek: Uint8Array;
     approvalTxBytes: Uint8Array;
     runnerAddress: string;
+    sealSession: unknown;
   }): Promise<Uint8Array> {
-    const runnerAddress = normalizeSuiAddress(input.runnerAddress);
+    if (!(input.sealSession instanceof SessionKey)) {
+      throw new ExecutorError(
+        "KEY_NOT_FOUND",
+        "Seal session was not provided",
+      );
+    }
+    if (input.sealSession.isExpired()) {
+      throw new ExecutorError("KEY_NOT_FOUND", "Seal session has expired");
+    }
     if (
-      normalizeSuiAddress(this.#signer.getPublicKey().toSuiAddress()) !==
-      runnerAddress
+      normalizeSuiAddress(input.sealSession.getAddress()) !==
+      normalizeSuiAddress(input.runnerAddress)
     ) {
       throw new ExecutorError(
         "KEY_NOT_FOUND",
-        "Seal session signer does not match the licensed runner",
-      );
-    }
-
-    let sessionKey: SessionKey;
-    try {
-      sessionKey = await this.#getSessionKey();
-    } catch {
-      throw new ExecutorError(
-        "KEY_NOT_FOUND",
-        "Seal session key could not be created",
+        "Seal session does not match the licensed runner",
       );
     }
 
     try {
       return await this.#client.decrypt({
         data: input.encryptedDek,
-        sessionKey,
+        sessionKey: input.sealSession,
         txBytes: input.approvalTxBytes,
       });
     } catch {
-      // Do not attach Seal server/transport details to this error.
+      // Do not attach Seal transport details to this error.
       throw new ExecutorError("KEY_NOT_FOUND", "Seal decrypt failed");
     }
   }

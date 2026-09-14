@@ -26,6 +26,7 @@ import { encryptBundle } from "../src/crypto/envelope.js";
 import { sha256Hex } from "../src/crypto/hash.js";
 import { InMemoryChallengeStore } from "../src/execution/challenge.js";
 import { ExecutionService } from "../src/execution/execution-service.js";
+import type { SealSessionAuthority } from "../src/execution/seal-session-authority.js";
 import { ExecutorError } from "../src/errors.js";
 import { Ed25519ReceiptSigner } from "../src/receipt/ed25519-receipt-signer.js";
 import { HttpRssFeedLoader } from "../src/rss/http-rss-feed-loader.js";
@@ -137,6 +138,7 @@ type HarnessOverrides = {
   loadFeed?: RssFeedLoader;
   receiptSigner?: ReceiptSigner;
   release?: WorkflowReleaseMetadata;
+  sealSessions?: Pick<SealSessionAuthority, "complete">;
 };
 
 async function makeHarness(overrides: HarnessOverrides = {}) {
@@ -230,6 +232,9 @@ async function makeHarness(overrides: HarnessOverrides = {}) {
     clock,
     receiptSigner: overrides.receiptSigner ?? defaultReceiptSigner,
     random: defaultRandom(),
+    ...(overrides.sealSessions !== undefined
+      ? { sealSessions: overrides.sealSessions }
+      : {}),
   });
 
   return {
@@ -481,6 +486,56 @@ describe("ExecutionService challenge sequencing and failures", () => {
     expect(rejected?.status === "rejected" ? rejected.reason : undefined).toMatchObject({
       code: "CHALLENGE_ALREADY_USED",
     });
+  });
+});
+
+describe("ExecutionService Seal session handling", () => {
+  it("requires sealSessionSignature when sealSessions is configured", async () => {
+    const sealSessions: Pick<SealSessionAuthority, "complete"> = {
+      complete: async () => {
+        throw new Error("must not be called without a signature");
+      },
+    };
+    const harness = await makeHarness({ sealSessions });
+
+    await expect(
+      harness.service.execute({
+        challengeId: harness.challenge.payload.challengeId,
+        walletSignature: harness.walletSignature,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+  });
+
+  it("completes the Seal session and forwards it to the key provider", async () => {
+    const fakeSession = { fake: "session" };
+    let completeInput: unknown;
+    let getDekInput: unknown;
+    const sealSessions: Pick<SealSessionAuthority, "complete"> = {
+      complete: async (input) => {
+        completeInput = input;
+        return fakeSession;
+      },
+    };
+    const keyProvider: KeyProvider = {
+      getDek: async (input) => {
+        getDekInput = input;
+        return DEK.slice();
+      },
+    };
+    const harness = await makeHarness({ sealSessions, keyProvider });
+
+    const response = await harness.service.execute({
+      challengeId: harness.challenge.payload.challengeId,
+      walletSignature: harness.walletSignature,
+      sealSessionSignature: "fake-signature",
+    });
+
+    expect(response.trace).toContain("SEAL_SESSION_VERIFIED");
+    expect(completeInput).toEqual({
+      challengeId: harness.challenge.payload.challengeId,
+      signature: "fake-signature",
+    });
+    expect(getDekInput).toMatchObject({ sealSession: fakeSession });
   });
 });
 

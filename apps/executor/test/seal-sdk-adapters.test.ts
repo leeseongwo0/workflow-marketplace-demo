@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { SessionKey } from "@mysten/seal";
 import { Transaction } from "@mysten/sui/transactions";
 
 import { MarketplaceSealApprovalTransactionBuilder } from
@@ -12,6 +12,7 @@ const PACKAGE_ID = `0x${"1".repeat(64)}`;
 const RELEASE_ID = `0x${"2".repeat(64)}`;
 const LICENSE_ID = `0x${"3".repeat(64)}`;
 const RUNNER = `0x${"4".repeat(64)}`;
+const OTHER_ADDRESS = `0x${"6".repeat(64)}`;
 
 describe("Seal SDK adapters", () => {
   it("sets the licensed runner as the approval transaction sender", async () => {
@@ -38,19 +39,41 @@ describe("Seal SDK adapters", () => {
     build.mockRestore();
   });
 
-  it("fails before contacting Seal when the session signer is not the runner", async () => {
-    const signer = Ed25519Keypair.generate();
+  it("fails before contacting Seal when sealSession is not a real SessionKey", async () => {
     const decryptor = new SealClientDecryptor({
       suiClient: {} as never,
       serverConfigs: [{ objectId: `0x${"5".repeat(64)}`, weight: 1 }],
-      signer,
-      packageId: PACKAGE_ID,
     });
 
     await expect(decryptor.decrypt({
       encryptedDek: Uint8Array.from([1]),
       approvalTxBytes: Uint8Array.from([2]),
       runnerAddress: RUNNER,
+      sealSession: { getAddress: () => RUNNER, isExpired: () => false },
+    })).rejects.toMatchObject({ code: "KEY_NOT_FOUND" });
+  });
+
+  it("fails before contacting Seal when the session address is not the runner", async () => {
+    const decryptor = new SealClientDecryptor({
+      suiClient: {} as never,
+      serverConfigs: [{ objectId: `0x${"5".repeat(64)}`, weight: 1 }],
+    });
+    const sessionKey = await SessionKey.create({
+      address: OTHER_ADDRESS,
+      packageId: PACKAGE_ID,
+      ttlMin: 10,
+      suiClient: {
+        core: {
+          getObject: async () => ({ object: { version: "1" } }),
+        },
+      } as never,
+    });
+
+    await expect(decryptor.decrypt({
+      encryptedDek: Uint8Array.from([1]),
+      approvalTxBytes: Uint8Array.from([2]),
+      runnerAddress: RUNNER,
+      sealSession: sessionKey,
     })).rejects.toMatchObject({ code: "KEY_NOT_FOUND" });
   });
 });

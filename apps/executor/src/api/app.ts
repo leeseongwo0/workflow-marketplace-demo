@@ -6,6 +6,7 @@ import Fastify, {
 
 import type { ExecutionResponse, ExecutionService } from "../execution/execution-service.js";
 import type { InMemoryChallengeStore } from "../execution/challenge.js";
+import type { SealSessionAuthority } from "../execution/seal-session-authority.js";
 import {
   invalidRequestError,
   statusForExecutorError,
@@ -20,6 +21,10 @@ export interface ExecutorApiOptions {
   challenges: Pick<InMemoryChallengeStore, "issue">;
   executionService: Pick<ExecutionService, "execute">;
   corsOrigin: string;
+  /** Omit for executor configurations that don't use Seal (e.g. the
+   * LocalDemoKeyProvider path) — the response then carries no
+   * sealSessionMessage and the client must not send sealSessionSignature. */
+  sealSessions?: Pick<SealSessionAuthority, "begin">;
 }
 
 export interface ExecutionChallengeHttpResponse {
@@ -28,6 +33,9 @@ export interface ExecutionChallengeHttpResponse {
   personalMessage: {
     bytesBase64: string;
     preview: string;
+  };
+  sealSessionMessage?: {
+    bytesBase64: string;
   };
 }
 
@@ -39,6 +47,7 @@ function sendPublicError(reply: FastifyReply, error: unknown): FastifyReply {
 
 function challengeResponse(
   challenge: ReturnType<InMemoryChallengeStore["issue"]>,
+  sealSessionMessage?: Uint8Array,
 ): ExecutionChallengeHttpResponse {
   const bytesBase64 = Buffer.from(challenge.message).toString("base64");
   return {
@@ -50,6 +59,13 @@ function challengeResponse(
         challenge.message,
       ),
     },
+    ...(sealSessionMessage !== undefined
+      ? {
+          sealSessionMessage: {
+            bytesBase64: Buffer.from(sealSessionMessage).toString("base64"),
+          },
+        }
+      : {}),
   };
 }
 
@@ -77,7 +93,11 @@ export function createExecutorApp(
 
     try {
       const challenge = options.challenges.issue(parsed.data);
-      return reply.code(200).send(challengeResponse(challenge));
+      const sealSessionMessage = await options.sealSessions?.begin({
+        challengeId: challenge.payload.challengeId,
+        runnerAddress: challenge.payload.runnerAddress,
+      });
+      return reply.code(200).send(challengeResponse(challenge, sealSessionMessage));
     } catch (error) {
       return sendPublicError(reply, error);
     }

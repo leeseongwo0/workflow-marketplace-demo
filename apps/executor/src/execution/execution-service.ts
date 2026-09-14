@@ -28,6 +28,7 @@ import {
 } from "../crypto/envelope.js";
 import { ExecutorError } from "../errors.js";
 import type { InMemoryChallengeStore } from "./challenge.js";
+import type { SealSessionAuthority } from "./seal-session-authority.js";
 
 const RECEIPT_NONCE_BYTES = 32;
 const ED25519_PUBLIC_KEY_BYTES = 32;
@@ -82,6 +83,7 @@ export interface ExecutionResponse {
   trace: Array<
     | "WALLET_SIGNATURE_VERIFIED"
     | "LICENSE_VERIFIED"
+    | "SEAL_SESSION_VERIFIED"
     | "WALRUS_BLOB_VERIFIED"
     | "BUNDLE_DECRYPTED_LOCAL_SERVER"
     | "RSS_FETCHED"
@@ -120,6 +122,7 @@ export class ExecutionService {
   readonly #clock: Clock;
   readonly #receiptSigner: ReceiptSigner;
   readonly #random: ExecutionRandomSource;
+  readonly #sealSessions: Pick<SealSessionAuthority, "complete"> | undefined;
 
   constructor(input: {
     challenges: InMemoryChallengeStore;
@@ -132,6 +135,9 @@ export class ExecutionService {
     clock: Clock;
     receiptSigner: ReceiptSigner;
     random?: ExecutionRandomSource;
+    /** Omit only for KeyProviders (e.g. LocalDemoKeyProvider) that ignore
+     * sealSession entirely. Required wherever SealKeyProvider is wired in. */
+    sealSessions?: Pick<SealSessionAuthority, "complete">;
   }) {
     this.#challenges = input.challenges;
     this.#walletVerifier = input.walletVerifier;
@@ -143,11 +149,13 @@ export class ExecutionService {
     this.#clock = input.clock;
     this.#receiptSigner = input.receiptSigner;
     this.#random = input.random ?? systemRandomSource;
+    this.#sealSessions = input.sealSessions;
   }
 
   async execute(input: {
     challengeId: string;
     walletSignature: string;
+    sealSessionSignature?: string | undefined;
   }): Promise<ExecutionResponse> {
     const challenge = this.#challenges.load(input.challengeId);
 
@@ -178,6 +186,21 @@ export class ExecutionService {
     }
     trace.push("LICENSE_VERIFIED");
 
+    let sealSession: unknown;
+    if (this.#sealSessions !== undefined) {
+      if (input.sealSessionSignature === undefined) {
+        throw new ExecutorError(
+          "INVALID_REQUEST",
+          "sealSessionSignature is required for this executor configuration",
+        );
+      }
+      sealSession = await this.#sealSessions.complete({
+        challengeId: input.challengeId,
+        signature: input.sealSessionSignature,
+      });
+      trace.push("SEAL_SESSION_VERIFIED");
+    }
+
     const executionBindings = requireExecutionBindings(release);
     const encryptedBundle = await this.#blobStore.get(release.blobId);
     assertSha256(encryptedBundle, executionBindings.encryptedBundleHash);
@@ -188,6 +211,7 @@ export class ExecutionService {
       releaseId: release.releaseId,
       licenseId: consumed.payload.licenseId,
       runnerAddress: consumed.payload.runnerAddress,
+      sealSession,
     });
     const plaintext = decryptBundle({
       serializedEnvelope: encryptedBundle,

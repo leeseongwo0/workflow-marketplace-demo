@@ -50,6 +50,7 @@ export interface SealDecryptor {
     encryptedDek: Uint8Array;
     approvalTxBytes: Uint8Array;
     runnerAddress: string;
+    sealSession: unknown;
   }): Promise<Uint8Array>;
 }
 
@@ -89,7 +90,13 @@ export class SealKeyProvider implements KeyProvider {
     releaseId: string;
     licenseId: string;
     runnerAddress: string;
+    sealSession?: unknown;
   }): Promise<Uint8Array> {
+    if (input.sealSession === undefined) {
+      // Fail closed: without a runner-signed session, decrypt() has no
+      // identity to prove seal_approve's LicensePass check with.
+      throw keyNotFound();
+    }
     let encryptedDek: Uint8Array;
     let approvalTxBytes: Uint8Array;
     try {
@@ -115,6 +122,7 @@ export class SealKeyProvider implements KeyProvider {
         encryptedDek,
         approvalTxBytes,
         runnerAddress: input.runnerAddress,
+        sealSession: input.sealSession,
       });
     } catch {
       throw keyNotFound();
