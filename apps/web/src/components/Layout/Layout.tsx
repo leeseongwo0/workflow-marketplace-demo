@@ -30,7 +30,7 @@ export function Layout() {
               <span className="demo-brand-mark">
                 <span className="demo-ink">W</span>
               </span>
-              <span className="demo-ink">Workflow/Market</span>
+              <span className="demo-ink">FlowMarket</span>
             </Link>
 
             <nav className="flex items-center gap-6">
@@ -59,7 +59,7 @@ export function Layout() {
 
       <footer className="border-t border-line mt-10">
         <div className="container mx-auto px-5 py-6 text-sm text-muted">
-          <span className="text-white font-bold">Workflow/Market</span>
+          <span className="text-white font-bold">FlowMarket</span>
           <span className="ml-4">TEESafe · Sui · Decentralized Governance</span>
         </div>
       </footer>
