@@ -280,7 +280,10 @@ describe("ExecutorClient", () => {
     });
   });
 
-  it("rejects a challenge response missing the Seal session message", async () => {
+  // The deployed executor does not return sealSessionMessage yet, so a
+  // challenge without it has to keep working. Requiring the field would break
+  // execution at the very first step.
+  it("accepts a challenge response that omits the Seal session message", async () => {
     const response = await validChallengeResponse();
     const { sealSessionMessage: _omitted, ...withoutSealSession } = response;
     const fetch = vi.fn(async () => jsonResponse(withoutSealSession));
@@ -290,10 +293,24 @@ describe("ExecutorClient", () => {
       now: () => CHALLENGE_NOW_MS,
     });
 
-    await expect(client.createChallenge(CHALLENGE_REQUEST)).rejects.toSatisfy((error: unknown) => {
-      expectApiError(error, "INVALID_RESPONSE", "Challenge response is invalid");
-      return true;
+    const result = await client.createChallenge(CHALLENGE_REQUEST);
+
+    expect(result.sealSessionMessage).toBeUndefined();
+    expect(result.personalMessage).toEqual(response.personalMessage);
+  });
+
+  it("returns the Seal session message once the executor sends one", async () => {
+    const response = await validChallengeResponse();
+    const fetch = vi.fn(async () => jsonResponse(response));
+    const client = new ExecutorClient({
+      baseUrl: BASE_URL,
+      fetch,
+      now: () => CHALLENGE_NOW_MS,
     });
+
+    const result = await client.createChallenge(CHALLENGE_REQUEST);
+
+    expect(result.sealSessionMessage).toEqual(response.sealSessionMessage);
   });
 
   it("rejects noncanonical challenge bytes before a wallet can sign them", async () => {

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import { MessageCircle } from "lucide-react";
+import { Heart, MessageCircle, Users } from "lucide-react";
 import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
 import { useToast } from "../components/Toast/ToastProvider";
 import { useWorkflowStore } from "../stores/workflow-store";
@@ -15,6 +15,8 @@ export default function WorkflowDetail() {
   const allComments = useWorkflowStore((s) => s.comments);
   const updateComment = useWorkflowStore((s) => s.updateComment);
   const deleteComment = useWorkflowStore((s) => s.deleteComment);
+  const likedWorkflowIds = useWorkflowStore((s) => s.likedWorkflowIds);
+  const toggleLike = useWorkflowStore((s) => s.toggleLike);
   const comments = useMemo(
     () => allComments.filter((comment) => comment.workflowId === workflowId),
     [allComments, workflowId],
@@ -34,6 +36,8 @@ export default function WorkflowDetail() {
       </div>
     );
   }
+
+  const liked = likedWorkflowIds.includes(workflow.id);
 
   const startEditing = (commentId: string, body: string) => {
     setConfirmDeleteId(null);
@@ -76,6 +80,28 @@ export default function WorkflowDetail() {
         <div className="flex items-start justify-between gap-8">
           <div>
             <h1 className="text-3xl font-bold mb-4">{workflow.name}</h1>
+            <div className="flex items-center gap-5 text-sm text-muted mb-5">
+              <span className="flex items-center gap-1.5">
+                <Users className="h-4 w-4 text-white" aria-hidden="true" />
+                {workflow.users}
+                <span className="text-xs">구매자</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => toggleLike(workflow.id)}
+                aria-pressed={liked}
+                aria-label={liked ? "좋아요 취소" : "좋아요"}
+                className="flex items-center gap-1.5 hover:text-white"
+              >
+                <Heart
+                  className={liked ? "h-4 w-4 text-red-500" : "h-4 w-4 text-white"}
+                  fill={liked ? "currentColor" : "none"}
+                  aria-hidden="true"
+                />
+                {workflow.likes + (liked ? 1 : 0)}
+                <span className="text-xs">좋아요</span>
+              </button>
+            </div>
             <button
               type="button"
               onClick={handlePurchaseClick}

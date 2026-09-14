@@ -337,21 +337,27 @@ function ConfiguredLiveDemo({ config }: { config: LiveConfig }) {
       if (signed.bytes !== challenge.personalMessage.bytesBase64) {
         throw new Error("Wallet signed bytes do not match the executor challenge");
       }
-      const sealSessionBytes = decodeBase64(challenge.sealSessionMessage.bytesBase64);
-      setExecutionStep("Waiting for Seal session signature");
-      const sealSigned = await dAppKit.signPersonalMessage({
-        message: sealSessionBytes,
-        account,
-        network: "testnet",
-      });
-      if (sealSigned.bytes !== challenge.sealSessionMessage.bytesBase64) {
-        throw new Error("Wallet signed bytes do not match the Seal session challenge");
+      // The executor only asks for a Seal session signature once real Seal is
+      // switched on; until then the challenge omits the message entirely.
+      let sealSessionSignature: string | undefined;
+      const sealSessionMessage = challenge.sealSessionMessage;
+      if (sealSessionMessage !== undefined) {
+        setExecutionStep("Waiting for Seal session signature");
+        const sealSigned = await dAppKit.signPersonalMessage({
+          message: decodeBase64(sealSessionMessage.bytesBase64),
+          account,
+          network: "testnet",
+        });
+        if (sealSigned.bytes !== sealSessionMessage.bytesBase64) {
+          throw new Error("Wallet signed bytes do not match the Seal session challenge");
+        }
+        sealSessionSignature = sealSigned.signature;
       }
       setExecutionStep("Executing local workflow");
       const response = await executor.execute({
         challengeId: challenge.challengeId,
         walletSignature: signed.signature,
-        sealSessionSignature: sealSigned.signature,
+        ...(sealSessionSignature === undefined ? {} : { sealSessionSignature }),
       });
       await verifyExecutionContent({ response, submittedQuery: query });
       if (

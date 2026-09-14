@@ -42,9 +42,14 @@ export const challengeResponseSchema = z.strictObject({
     bytesBase64: base64Schema,
     preview: z.string().min(1),
   }),
-  sealSessionMessage: z.strictObject({
-    bytesBase64: base64Schema,
-  }),
+  // Optional on purpose: the deployed executor does not return this yet.
+  // Once it does, the client signs it and forwards sealSessionSignature
+  // without needing another change here.
+  sealSessionMessage: z
+    .strictObject({
+      bytesBase64: base64Schema,
+    })
+    .optional(),
 });
 
 export const executionResponseSchema = z.strictObject({
@@ -359,7 +364,9 @@ export class ExecutorClient {
     // Seal's session message has its own (non-canonical-JSON) format, so it
     // is only checked for well-formed base64 here, not deep-validated like
     // personalMessage — decoding is what lets a wallet sign it.
-    decodeCanonicalBase64(parsed.data.sealSessionMessage.bytesBase64);
+    if (parsed.data.sealSessionMessage !== undefined) {
+      decodeCanonicalBase64(parsed.data.sealSessionMessage.bytesBase64);
+    }
     return parsed.data;
   }
 
