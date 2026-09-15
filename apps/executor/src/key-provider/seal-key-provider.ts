@@ -8,10 +8,8 @@ const DEK_LENGTH = 32;
  * the given release/license/runner. Seal key servers evaluate this PTB
  * on-chain and only return key shares if it does not abort.
  *
- * TODO(seal): `seal_approve` does not exist in
- * `move/workflow_marketplace` yet. Add it (checking LicensePass ownership
- * against the release, mirroring SuiLicenseVerifier's checks) before wiring
- * a real implementation of this interface.
+ * `seal_approve` exists in `execution.move` and checks LicensePass ownership
+ * against the release via `license::assert_license_valid`.
  */
 export interface SealApprovalTransactionBuilder {
   build(input: {
@@ -26,10 +24,8 @@ export interface SealApprovalTransactionBuilder {
  * small blob (Seal wraps only the 32-byte DEK, not the workflow bundle),
  * distinct from the AES-GCM-encrypted bundle stored in Walrus.
  *
- * TODO(seal): `WorkflowRelease` currently has no field for this blob (only
- * `key_id`, the Seal identity string). Decide with the team whether it lives
- * in a new Move field or a separate Walrus blob before wiring a real
- * implementation of this interface.
+ * `WorkflowRelease` uses `blob_id` for the Walrus blob. The Seal identity
+ * is derived from the release object ID (`object::id(release)`).
  */
 export interface SealEncryptedDekSource {
   get(input: { keyId: string; releaseId: string }): Promise<Uint8Array>;

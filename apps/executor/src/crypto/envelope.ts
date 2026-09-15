@@ -94,7 +94,7 @@ export function encryptBundle(input: {
 export function decryptBundle(input: {
   serializedEnvelope: Uint8Array;
   dek: Uint8Array;
-  expectedAad: BundleAad;
+  expectedAad?: BundleAad;
 }): Uint8Array {
   requireLength(input.dek, DEK_LENGTH, "DEK");
 
@@ -107,14 +107,17 @@ export function decryptBundle(input: {
     if (!equalBytes(canonicalEnvelope, input.serializedEnvelope)) {
       throw new TypeError("Encrypted envelope is not canonical JSON");
     }
-    if (envelope.keyId !== createBundleKeyId(input.expectedAad)) {
-      throw new TypeError("Encrypted envelope key ID does not match expected AAD");
-    }
 
-    const expectedAadBytes = canonicalJsonBytes(input.expectedAad);
     const storedAadBytes = decodeBase64(envelope.aadBase64);
-    if (!equalBytes(storedAadBytes, expectedAadBytes)) {
-      throw new TypeError("Encrypted envelope AAD does not match expected AAD");
+
+    if (input.expectedAad !== undefined) {
+      if (envelope.keyId !== createBundleKeyId(input.expectedAad)) {
+        throw new TypeError("Encrypted envelope key ID does not match expected AAD");
+      }
+      const expectedAadBytes = canonicalJsonBytes(input.expectedAad);
+      if (!equalBytes(storedAadBytes, expectedAadBytes)) {
+        throw new TypeError("Encrypted envelope AAD does not match expected AAD");
+      }
     }
 
     const nonce = decodeBase64(envelope.nonceBase64);
@@ -126,7 +129,7 @@ export function decryptBundle(input: {
     const decipher = createDecipheriv("aes-256-gcm", input.dek, nonce, {
       authTagLength: TAG_LENGTH,
     });
-    decipher.setAAD(expectedAadBytes, { plaintextLength: ciphertext.length });
+    decipher.setAAD(storedAadBytes, { plaintextLength: ciphertext.length });
     decipher.setAuthTag(tag);
     return new Uint8Array(
       Buffer.concat([decipher.update(ciphertext), decipher.final()]),

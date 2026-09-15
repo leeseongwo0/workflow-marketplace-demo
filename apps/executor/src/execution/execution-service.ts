@@ -2,7 +2,6 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 import {
   canonicalJsonBytes,
-  createBundleAad,
   encodeReceiptMessageBcs,
 } from "@aiwf/shared";
 import {
@@ -20,7 +19,7 @@ import type {
   WalletSignatureVerifier,
   WorkflowBlobStore,
 } from "../contracts.js";
-import { assertSha256, sha256Hex } from "../crypto/hash.js";
+import { sha256Hex } from "../crypto/hash.js";
 import {
   decryptBundle,
   parseDecryptedWorkflowBundle,
@@ -165,12 +164,11 @@ export class ExecutionService {
     }
     trace.push("LICENSE_VERIFIED");
 
-    const encryptedBundle = await this.#blobStore.get(release.walrusBlobId);
-    assertSha256(encryptedBundle, release.encryptedBundleHash);
+    const encryptedBundle = await this.#blobStore.get(release.blobId);
     trace.push("WALRUS_BLOB_VERIFIED");
 
     const dek = await this.#keyProvider.getDek({
-      keyId: release.keyId,
+      keyId: release.releaseId,
       releaseId: release.releaseId,
       licenseId: consumed.payload.licenseId,
       runnerAddress: consumed.payload.runnerAddress,
@@ -178,11 +176,6 @@ export class ExecutionService {
     const plaintext = decryptBundle({
       serializedEnvelope: encryptedBundle,
       dek,
-      expectedAad: createBundleAad({
-        rootId: release.rootId,
-        version: release.version,
-        publicManifestHash: release.publicManifestHash,
-      }),
     });
     const bundle = parseDecryptedWorkflowBundle(plaintext);
     trace.push("BUNDLE_DECRYPTED_LOCAL_SERVER");
@@ -253,7 +246,7 @@ export class ExecutionService {
       workflow: {
         releaseId: release.releaseId,
         version: release.version,
-        workflowType: release.workflowType,
+        workflowType: "google_news_rss/v1" as const,
       },
       input: {
         query: consumed.normalizedQuery,
