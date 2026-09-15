@@ -16,11 +16,13 @@ const RELEASE_ID = `0x${"b".repeat(64)}`;
 const OTHER_RELEASE_ID = `0x${"c".repeat(64)}`;
 const ROOT_ID = `0x${"d".repeat(64)}`;
 const LICENSE_ID = `0x${"e".repeat(64)}`;
+const OTHER_LICENSE_ID = `0x${"f".repeat(64)}`;
 const RECEIPT_ID = `0x${"1".repeat(64)}`;
 const OTHER_RECEIPT_ID = `0x${"2".repeat(64)}`;
 const OWNER = `0x${"3".repeat(64)}`;
 const CREATOR = `0x${"4".repeat(64)}`;
 const OTHER_OWNER = `0x${"5".repeat(64)}`;
+const EXECUTOR_ID = MARKETPLACE_ID;
 
 const idBcs = bcs.struct("WebTestID", { bytes: bcs.Address });
 const uidBcs = bcs.struct("WebTestUID", { id: idBcs });
@@ -38,27 +40,37 @@ const marketplaceBcs = bcs.struct("WebTestMarketplace", {
 const releaseBcs = bcs.struct("WebTestWorkflowRelease", {
   id: uidBcs,
   root_id: idBcs,
+  creator: bcs.Address,
+  version_major: bcs.u64(),
+  version_minor: bcs.u64(),
+  version_patch: bcs.u64(),
+  title: bcs.string(),
+  description: bcs.string(),
+  workflow_type: bcs.string(),
+  walrus_blob_id: bcs.string(),
+  encrypted_bundle_hash: bcs.vector(bcs.u8()),
+  public_manifest_hash: bcs.vector(bcs.u8()),
+  key_id: bcs.string(),
+  price_mist: bcs.u64(),
   parent_release_id: bcs.option(idBcs),
-  version: bcs.string(),
-  blob_id: bcs.string(),
-  price_license: bcs.u64(),
-  price_fork: bcs.u64(),
-  royalty_bps: bcs.u64(),
-  is_listed: bcs.bool(),
-  created_at: bcs.u64(),
+  active: bcs.bool(),
+  created_at_ms: bcs.u64(),
 });
 const licenseBcs = bcs.struct("WebTestLicensePass", {
   id: uidBcs,
   release_id: idBcs,
-  owner: bcs.Address,
-  remaining_runs: bcs.option(bcs.u64()),
-  expires_at: bcs.option(bcs.u64()),
+  issued_at_ms: bcs.u64(),
 });
 const receiptBcs = bcs.struct("WebTestExecutionReceipt", {
   id: uidBcs,
   release_id: idBcs,
-  executor: bcs.Address,
-  executed_at: bcs.u64(),
+  license_id: idBcs,
+  runner: bcs.Address,
+  input_hash: bcs.vector(bcs.u8()),
+  output_hash: bcs.vector(bcs.u8()),
+  executor_id: idBcs,
+  executed_at_ms: bcs.u64(),
+  nonce_hash: bcs.vector(bcs.u8()),
 });
 
 function addressOwner(address: string): unknown {
@@ -90,19 +102,31 @@ function marketplaceContent(input: {
 function releaseContent(input: {
   id?: string;
   rootId?: string;
-  isListed?: boolean;
+  workflowType?: string;
+  encryptedBundleHash?: Uint8Array;
+  publicManifestHash?: Uint8Array;
+  active?: boolean;
 } = {}): Uint8Array {
   return releaseBcs.serialize({
     id: { id: { bytes: input.id ?? RELEASE_ID } },
     root_id: { bytes: input.rootId ?? ROOT_ID },
+    creator: CREATOR,
+    version_major: 1n,
+    version_minor: 2n,
+    version_patch: 3n,
+    title: "Google News RSS Monitor",
+    description: "Deterministic fixture release",
+    workflow_type: input.workflowType ?? "google_news_rss/v1",
+    walrus_blob_id: "blob-phase5",
+    encrypted_bundle_hash:
+      input.encryptedBundleHash ?? new Uint8Array(32).fill(0x11),
+    public_manifest_hash:
+      input.publicManifestHash ?? new Uint8Array(32).fill(0x22),
+    key_id: "root:phase5:release:1.2.3",
+    price_mist: 123n,
     parent_release_id: null,
-    version: "1.2.3",
-    blob_id: "blob-test",
-    price_license: 100n,
-    price_fork: 200n,
-    royalty_bps: 500n,
-    is_listed: input.isListed ?? true,
-    created_at: 1_723_900_000_000n,
+    active: input.active ?? true,
+    created_at_ms: 1_723_900_000_000n,
   }).toBytes();
 }
 
@@ -113,22 +137,28 @@ function licenseContent(input: {
   return licenseBcs.serialize({
     id: { id: { bytes: input.id ?? LICENSE_ID } },
     release_id: { bytes: input.releaseId ?? RELEASE_ID },
-    owner: OWNER,
-    remaining_runs: 10n,
-    expires_at: null,
+    issued_at_ms: 1_723_900_000_000n,
   }).toBytes();
 }
 
 function receiptContent(input: {
   id?: string;
   releaseId?: string;
-  executor?: string;
+  licenseId?: string;
+  runner?: string;
+  executorId?: string;
+  nonceHash?: Uint8Array;
 } = {}): Uint8Array {
   return receiptBcs.serialize({
     id: { id: { bytes: input.id ?? RECEIPT_ID } },
     release_id: { bytes: input.releaseId ?? RELEASE_ID },
-    executor: input.executor ?? OWNER,
-    executed_at: 1_723_900_000_000n,
+    license_id: { bytes: input.licenseId ?? LICENSE_ID },
+    runner: input.runner ?? OWNER,
+    input_hash: new Uint8Array(32).fill(0x44),
+    output_hash: new Uint8Array(32).fill(0x55),
+    executor_id: { bytes: input.executorId ?? EXECUTOR_ID },
+    executed_at_ms: 1_723_900_000_000n,
+    nonce_hash: input.nonceHash ?? new Uint8Array(32).fill(0x66),
   }).toBytes();
 }
 
@@ -152,8 +182,8 @@ function marketplaceObject(input: Partial<ObjectFixture> = {}): ObjectFixture {
 function releaseObject(input: Partial<ObjectFixture> = {}): ObjectFixture {
   return {
     objectId: RELEASE_ID,
-    type: `${PACKAGE_ID}::agent::WorkflowRelease`,
-    owner: addressOwner(CREATOR),
+    type: `${PACKAGE_ID}::marketplace::WorkflowRelease`,
+    owner: sharedOwner(),
     content: releaseContent(),
     ...input,
   };
@@ -200,14 +230,17 @@ describe("web Sui object BCS adapters", () => {
     })).resolves.toEqual({
       id: RELEASE_ID,
       rootId: ROOT_ID,
-      parentReleaseId: null,
+      creator: CREATOR,
       version: "1.2.3",
-      blobId: "blob-test",
-      priceLicense: 100n,
-      priceFork: 200n,
-      royaltyBps: 500n,
-      isListed: true,
-      createdAt: 1_723_900_000_000n,
+      title: "Google News RSS Monitor",
+      description: "Deterministic fixture release",
+      workflowType: "google_news_rss/v1",
+      walrusBlobId: "blob-phase5",
+      encryptedBundleHash: "11".repeat(32),
+      publicManifestHash: "22".repeat(32),
+      keyId: "root:phase5:release:1.2.3",
+      priceMist: 123n,
+      active: true,
     });
   });
 
@@ -249,11 +282,13 @@ describe("web Sui object BCS adapters", () => {
     })).rejects.toThrow("executor public key");
   });
 
-  it("rejects WorkflowRelease type, identity, and BCS mismatches", async () => {
+  it("rejects WorkflowRelease type, shared-owner, identity, workflow, and BCS mismatches", async () => {
     const invalidObjects: ObjectFixture[] = [
-      releaseObject({ type: `${OTHER_PACKAGE_ID}::agent::WorkflowRelease` }),
+      releaseObject({ type: `${OTHER_PACKAGE_ID}::marketplace::WorkflowRelease` }),
+      releaseObject({ owner: addressOwner(OWNER) }),
       releaseObject({ objectId: OTHER_RELEASE_ID }),
       releaseObject({ content: releaseContent({ id: OTHER_RELEASE_ID }) }),
+      releaseObject({ content: releaseContent({ workflowType: "other/v1" }) }),
       releaseObject({ content: new Uint8Array([0xff]) }),
     ];
 
@@ -273,7 +308,7 @@ describe("web Sui object BCS adapters", () => {
       .mockResolvedValueOnce({
         objects: [{
           objectId: LICENSE_ID,
-          type: `${PACKAGE_ID}::license::LicensePass`,
+          type: `${PACKAGE_ID}::marketplace::LicensePass`,
           owner: addressOwner(OWNER),
           content: licenseContent({ releaseId: OTHER_RELEASE_ID }),
         }],
@@ -283,7 +318,7 @@ describe("web Sui object BCS adapters", () => {
       .mockResolvedValueOnce({
         objects: [{
           objectId: secondLicenseId,
-          type: `${PACKAGE_ID}::license::LicensePass`,
+          type: `${PACKAGE_ID}::marketplace::LicensePass`,
           owner: addressOwner(OWNER),
           content: licenseContent({ id: secondLicenseId }),
         }],
@@ -300,20 +335,18 @@ describe("web Sui object BCS adapters", () => {
     })).resolves.toEqual({
       id: secondLicenseId,
       releaseId: RELEASE_ID,
-      owner: OWNER,
-      remainingRuns: 10n,
-      expiresAt: null,
+      issuedAtMs: 1_723_900_000_000n,
     });
     expect(listOwnedObjects).toHaveBeenNthCalledWith(1, {
       owner: OWNER,
-      type: `${PACKAGE_ID}::license::LicensePass`,
+      type: `${PACKAGE_ID}::marketplace::LicensePass`,
       cursor: null,
       limit: 50,
       include: { content: true },
     });
     expect(listOwnedObjects).toHaveBeenNthCalledWith(2, {
       owner: OWNER,
-      type: `${PACKAGE_ID}::license::LicensePass`,
+      type: `${PACKAGE_ID}::marketplace::LicensePass`,
       cursor: "license-page-2",
       limit: 50,
       include: { content: true },
@@ -324,7 +357,7 @@ describe("web Sui object BCS adapters", () => {
     const listOwnedObjects = vi.fn(async () => ({
       objects: [{
         objectId: LICENSE_ID,
-        type: `${PACKAGE_ID}::license::LicensePass`,
+        type: `${PACKAGE_ID}::marketplace::LicensePass`,
         owner: addressOwner(OTHER_OWNER),
         content: licenseContent({ releaseId: OTHER_RELEASE_ID }),
       }],
@@ -341,14 +374,15 @@ describe("web Sui object BCS adapters", () => {
     })).rejects.toThrow("owner");
   });
 
-  it("paginates receipts and returns only an exact release/executor match", async () => {
+  it("paginates receipts and returns only an exact release/license/runner/marketplace/nonce match", async () => {
+    const nonceHash = new Uint8Array(32).fill(0x66);
     const listOwnedObjects = vi.fn()
       .mockResolvedValueOnce({
         objects: [{
           objectId: OTHER_RECEIPT_ID,
-          type: `${PACKAGE_ID}::execution::ExecutionReceipt`,
+          type: `${PACKAGE_ID}::marketplace::ExecutionReceipt`,
           owner: addressOwner(OWNER),
-          content: receiptContent({ releaseId: OTHER_RELEASE_ID }),
+          content: receiptContent({ nonceHash: new Uint8Array(32).fill(0x77) }),
         }],
         hasNextPage: true,
         cursor: "receipt-page-2",
@@ -356,9 +390,9 @@ describe("web Sui object BCS adapters", () => {
       .mockResolvedValueOnce({
         objects: [{
           objectId: RECEIPT_ID,
-          type: `${PACKAGE_ID}::execution::ExecutionReceipt`,
+          type: `${PACKAGE_ID}::marketplace::ExecutionReceipt`,
           owner: addressOwner(OWNER),
-          content: receiptContent(),
+          content: receiptContent({ nonceHash }),
         }],
         hasNextPage: false,
         cursor: null,
@@ -368,17 +402,21 @@ describe("web Sui object BCS adapters", () => {
     await expect(findRecordedReceipt({
       client,
       packageId: PACKAGE_ID,
+      marketplaceId: MARKETPLACE_ID,
       owner: OWNER,
       releaseId: RELEASE_ID,
+      licenseId: LICENSE_ID,
+      nonceHash: "66".repeat(32),
     })).resolves.toEqual({
       id: RECEIPT_ID,
       releaseId: RELEASE_ID,
-      executor: OWNER,
-      executedAt: 1_723_900_000_000n,
+      licenseId: LICENSE_ID,
+      runner: OWNER,
+      nonceHash: "66".repeat(32),
     });
     expect(listOwnedObjects).toHaveBeenNthCalledWith(1, {
       owner: OWNER,
-      type: `${PACKAGE_ID}::execution::ExecutionReceipt`,
+      type: `${PACKAGE_ID}::marketplace::ExecutionReceipt`,
       cursor: null,
       limit: 50,
       include: { content: true },
@@ -389,7 +427,7 @@ describe("web Sui object BCS adapters", () => {
     const listOwnedObjects = vi.fn(async () => ({
       objects: [{
         objectId: RECEIPT_ID,
-        type: `${PACKAGE_ID}::execution::ExecutionReceipt`,
+        type: `${PACKAGE_ID}::marketplace::ExecutionReceipt`,
         owner: addressOwner(OWNER),
         content: new Uint8Array([0xff]),
       }],
@@ -401,8 +439,11 @@ describe("web Sui object BCS adapters", () => {
     await expect(findRecordedReceipt({
       client,
       packageId: PACKAGE_ID,
+      marketplaceId: MARKETPLACE_ID,
       owner: OWNER,
       releaseId: RELEASE_ID,
+      licenseId: LICENSE_ID,
+      nonceHash: "66".repeat(32),
     })).rejects.toThrow();
   });
 });

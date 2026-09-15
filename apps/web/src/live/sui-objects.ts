@@ -17,29 +17,39 @@ const marketplaceBcs = bcs.struct("WebMarketplace", {
 const releaseBcs = bcs.struct("WebWorkflowRelease", {
   id: uidBcs,
   root_id: idBcs,
+  creator: bcs.Address,
+  version_major: bcs.u64(),
+  version_minor: bcs.u64(),
+  version_patch: bcs.u64(),
+  title: bcs.string(),
+  description: bcs.string(),
+  workflow_type: bcs.string(),
+  walrus_blob_id: bcs.string(),
+  encrypted_bundle_hash: bcs.vector(bcs.u8()),
+  public_manifest_hash: bcs.vector(bcs.u8()),
+  key_id: bcs.string(),
+  price_mist: bcs.u64(),
   parent_release_id: bcs.option(idBcs),
-  version: bcs.string(),
-  blob_id: bcs.string(),
-  price_license: bcs.u64(),
-  price_fork: bcs.u64(),
-  royalty_bps: bcs.u64(),
-  is_listed: bcs.bool(),
-  created_at: bcs.u64(),
+  active: bcs.bool(),
+  created_at_ms: bcs.u64(),
 });
 
 const licenseBcs = bcs.struct("WebLicensePass", {
   id: uidBcs,
   release_id: idBcs,
-  owner: bcs.Address,
-  remaining_runs: bcs.option(bcs.u64()),
-  expires_at: bcs.option(bcs.u64()),
+  issued_at_ms: bcs.u64(),
 });
 
 const receiptBcs = bcs.struct("WebExecutionReceipt", {
   id: uidBcs,
   release_id: idBcs,
-  executor: bcs.Address,
-  executed_at: bcs.u64(),
+  license_id: idBcs,
+  runner: bcs.Address,
+  input_hash: bcs.vector(bcs.u8()),
+  output_hash: bcs.vector(bcs.u8()),
+  executor_id: idBcs,
+  executed_at_ms: bcs.u64(),
+  nonce_hash: bcs.vector(bcs.u8()),
 });
 
 type ObjectClient = Pick<SuiGrpcClient, "getObject" | "listOwnedObjects">;
@@ -63,33 +73,41 @@ export interface LiveMarketplace {
 export interface LiveRelease {
   id: string;
   rootId: string;
-  parentReleaseId: string | null;
+  creator: string;
   version: string;
-  blobId: string;
-  priceLicense: bigint;
-  priceFork: bigint;
-  royaltyBps: bigint;
-  isListed: boolean;
-  createdAt: bigint;
+  title: string;
+  description: string;
+  workflowType: "google_news_rss/v1";
+  walrusBlobId: string;
+  encryptedBundleHash: string;
+  publicManifestHash: string;
+  keyId: string;
+  priceMist: bigint;
+  active: boolean;
 }
 
 export interface OwnedLicense {
   id: string;
   releaseId: string;
-  owner: string;
-  remainingRuns: bigint | null;
-  expiresAt: bigint | null;
+  issuedAtMs: bigint;
 }
 
 export interface OwnedReceipt {
   id: string;
   releaseId: string;
-  executor: string;
-  executedAt: bigint;
+  licenseId: string;
+  runner: string;
+  nonceHash: string;
 }
 
-function moduleType(packageId: string, module: string, structName: string): string {
-  return `${normalizeSuiAddress(packageId)}::${module}::${structName}`;
+function exactType(packageId: string, structName: string): string {
+  return `${normalizeSuiAddress(packageId)}::marketplace::${structName}`;
+}
+
+function bytesHex(bytes: readonly number[], length: number, label: string): string {
+  const value = Uint8Array.from(bytes);
+  if (value.length !== length) throw new Error(`${label} has an invalid length`);
+  return Array.from(value, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function requireAddressOwner(owner: unknown, expected: string): void {
@@ -129,7 +147,7 @@ export async function loadMarketplace(input: {
   });
   if (
     object.objectId !== marketplaceId ||
-    object.type !== moduleType(input.packageId, "marketplace", "Marketplace") ||
+    object.type !== exactType(input.packageId, "Marketplace") ||
     !(object.content instanceof Uint8Array)
   ) {
     throw new Error("Configured Marketplace is invalid");
@@ -158,26 +176,33 @@ export async function loadRelease(input: {
   });
   if (
     object.objectId !== releaseId ||
-    object.type !== moduleType(input.packageId, "agent", "WorkflowRelease") ||
+    object.type !== exactType(input.packageId, "WorkflowRelease") ||
     !(object.content instanceof Uint8Array)
   ) {
     throw new Error("Configured WorkflowRelease is invalid");
   }
+  requireSharedOwner(object.owner);
   const parsed = releaseBcs.parse(object.content);
   if (parsed.id.id.bytes !== releaseId) {
     throw new Error("WorkflowRelease object identity is inconsistent");
   }
+  if (parsed.workflow_type !== "google_news_rss/v1") {
+    throw new Error("WorkflowRelease type is unsupported");
+  }
   return {
     id: releaseId,
     rootId: parsed.root_id.bytes,
-    parentReleaseId: parsed.parent_release_id?.bytes ?? null,
-    version: parsed.version,
-    blobId: parsed.blob_id,
-    priceLicense: BigInt(parsed.price_license),
-    priceFork: BigInt(parsed.price_fork),
-    royaltyBps: BigInt(parsed.royalty_bps),
-    isListed: parsed.is_listed,
-    createdAt: BigInt(parsed.created_at),
+    creator: parsed.creator,
+    version: `${parsed.version_major}.${parsed.version_minor}.${parsed.version_patch}`,
+    title: parsed.title,
+    description: parsed.description,
+    workflowType: "google_news_rss/v1",
+    walrusBlobId: parsed.walrus_blob_id,
+    encryptedBundleHash: bytesHex(parsed.encrypted_bundle_hash, 32, "Encrypted bundle hash"),
+    publicManifestHash: bytesHex(parsed.public_manifest_hash, 32, "Public manifest hash"),
+    keyId: parsed.key_id,
+    priceMist: BigInt(parsed.price_mist),
+    active: parsed.active,
   };
 }
 
@@ -193,14 +218,14 @@ export async function findOwnedLicense(input: {
   for (let page = 0; page < 10; page += 1) {
     const response: OwnedObjectPage = await input.client.listOwnedObjects({
       owner,
-      type: moduleType(input.packageId, "license", "LicensePass"),
+      type: exactType(input.packageId, "LicensePass"),
       cursor,
       limit: 50,
       include: { content: true },
     });
     for (const object of response.objects) {
       if (
-        object.type !== moduleType(input.packageId, "license", "LicensePass") ||
+        object.type !== exactType(input.packageId, "LicensePass") ||
         !(object.content instanceof Uint8Array)
       ) continue;
       requireAddressOwner(object.owner, owner);
@@ -210,9 +235,7 @@ export async function findOwnedLicense(input: {
         return {
           id: normalizeSuiAddress(object.objectId),
           releaseId,
-          owner: parsed.owner,
-          remainingRuns: parsed.remaining_runs !== null ? BigInt(parsed.remaining_runs) : null,
-          expiresAt: parsed.expires_at !== null ? BigInt(parsed.expires_at) : null,
+          issuedAtMs: BigInt(parsed.issued_at_ms),
         };
       }
     }
@@ -225,37 +248,47 @@ export async function findOwnedLicense(input: {
 export async function findRecordedReceipt(input: {
   client: ObjectClient;
   packageId: string;
+  marketplaceId: string;
   owner: string;
   releaseId: string;
+  licenseId: string;
+  nonceHash: string;
 }): Promise<OwnedReceipt | undefined> {
   const owner = normalizeSuiAddress(input.owner);
   const releaseId = normalizeSuiAddress(input.releaseId);
+  const licenseId = normalizeSuiAddress(input.licenseId);
+  const marketplaceId = normalizeSuiAddress(input.marketplaceId);
   let cursor: string | null = null;
   for (let page = 0; page < 10; page += 1) {
     const response: OwnedObjectPage = await input.client.listOwnedObjects({
       owner,
-      type: moduleType(input.packageId, "execution", "ExecutionReceipt"),
+      type: exactType(input.packageId, "ExecutionReceipt"),
       cursor,
       limit: 50,
       include: { content: true },
     });
     for (const object of response.objects) {
       if (
-        object.type !== moduleType(input.packageId, "execution", "ExecutionReceipt") ||
+        object.type !== exactType(input.packageId, "ExecutionReceipt") ||
         !(object.content instanceof Uint8Array)
       ) continue;
       requireAddressOwner(object.owner, owner);
       const parsed = receiptBcs.parse(object.content);
+      const nonceHash = bytesHex(parsed.nonce_hash, 32, "Receipt nonce hash");
       if (
         parsed.id.id.bytes === normalizeSuiAddress(object.objectId) &&
         parsed.release_id.bytes === releaseId &&
-        parsed.executor === owner
+        parsed.license_id.bytes === licenseId &&
+        parsed.runner === owner &&
+        parsed.executor_id.bytes === marketplaceId &&
+        nonceHash === input.nonceHash
       ) {
         return {
           id: normalizeSuiAddress(object.objectId),
           releaseId,
-          executor: parsed.executor,
-          executedAt: BigInt(parsed.executed_at),
+          licenseId,
+          runner: owner,
+          nonceHash,
         };
       }
     }
