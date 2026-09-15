@@ -502,12 +502,31 @@ describe("ExecutionService Seal session handling", () => {
       harness.service.execute({
         challengeId: harness.challenge.payload.challengeId,
         walletSignature: harness.walletSignature,
+        executionRequestId: `0x${"9".repeat(64)}`,
       }),
     ).rejects.toMatchObject({ code: "INVALID_REQUEST" });
   });
 
-  it("completes the Seal session and forwards it to the key provider", async () => {
+  it("requires executionRequestId when sealSessions is configured", async () => {
+    const sealSessions: Pick<SealSessionAuthority, "complete"> = {
+      complete: async () => {
+        throw new Error("must not be called without an executionRequestId");
+      },
+    };
+    const harness = await makeHarness({ sealSessions });
+
+    await expect(
+      harness.service.execute({
+        challengeId: harness.challenge.payload.challengeId,
+        walletSignature: harness.walletSignature,
+        sealSessionSignature: "fake-signature",
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+  });
+
+  it("completes the Seal session and forwards it, with the request id, to the key provider", async () => {
     const fakeSession = { fake: "session" };
+    const requestId = `0x${"9".repeat(64)}`;
     let completeInput: unknown;
     let getDekInput: unknown;
     const sealSessions: Pick<SealSessionAuthority, "complete"> = {
@@ -528,6 +547,7 @@ describe("ExecutionService Seal session handling", () => {
       challengeId: harness.challenge.payload.challengeId,
       walletSignature: harness.walletSignature,
       sealSessionSignature: "fake-signature",
+      executionRequestId: requestId,
     });
 
     expect(response.trace).toContain("SEAL_SESSION_VERIFIED");
@@ -535,7 +555,10 @@ describe("ExecutionService Seal session handling", () => {
       challengeId: harness.challenge.payload.challengeId,
       signature: "fake-signature",
     });
-    expect(getDekInput).toMatchObject({ sealSession: fakeSession });
+    expect(getDekInput).toMatchObject({
+      sealSession: fakeSession,
+      requestId,
+    });
   });
 });
 

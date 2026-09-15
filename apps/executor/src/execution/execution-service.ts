@@ -156,6 +156,7 @@ export class ExecutionService {
     challengeId: string;
     walletSignature: string;
     sealSessionSignature?: string | undefined;
+    executionRequestId?: string | undefined;
   }): Promise<ExecutionResponse> {
     const challenge = this.#challenges.load(input.challengeId);
 
@@ -194,6 +195,12 @@ export class ExecutionService {
           "sealSessionSignature is required for this executor configuration",
         );
       }
+      if (input.executionRequestId === undefined) {
+        throw new ExecutorError(
+          "INVALID_REQUEST",
+          "executionRequestId is required for this executor configuration",
+        );
+      }
       sealSession = await this.#sealSessions.complete({
         challengeId: input.challengeId,
         signature: input.sealSessionSignature,
@@ -212,6 +219,7 @@ export class ExecutionService {
       licenseId: consumed.payload.licenseId,
       runnerAddress: consumed.payload.runnerAddress,
       sealSession,
+      requestId: input.executionRequestId,
     });
     const plaintext = decryptBundle({
       serializedEnvelope: encryptedBundle,

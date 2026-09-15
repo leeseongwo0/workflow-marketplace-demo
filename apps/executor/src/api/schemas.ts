@@ -11,6 +11,12 @@ export const executionRequestSchema = z.strictObject({
   challengeId: z.uuid(),
   walletSignature: z.string().min(1).max(8_192),
   sealSessionSignature: z.string().min(1).max(8_192).optional(),
+  /**
+   * The on-chain `ExecutionRequest` object the buyer created (see
+   * create_execution_request in execution.move) before this call — required
+   * whenever sealSessions is configured, same as sealSessionSignature.
+   */
+  executionRequestId: z.string().regex(/^0x[0-9a-fA-F]{1,64}$/u).optional(),
 });
 
 export type ExecutionChallengeRequest = z.infer<

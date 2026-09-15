@@ -10,12 +10,13 @@ import { SealClientDecryptor } from
 
 const PACKAGE_ID = `0x${"1".repeat(64)}`;
 const RELEASE_ID = `0x${"2".repeat(64)}`;
-const LICENSE_ID = `0x${"3".repeat(64)}`;
 const RUNNER = `0x${"4".repeat(64)}`;
 const OTHER_ADDRESS = `0x${"6".repeat(64)}`;
+const REQUEST_ID = `0x${"7".repeat(64)}`;
+const ENCLAVE_ID = `0x${"8".repeat(64)}`;
 
 describe("Seal SDK adapters", () => {
-  it("sets the licensed runner as the approval transaction sender", async () => {
+  it("signs request||release with the enclave signer and builds the seal_approve call", async () => {
     let transactionData: unknown;
     const build = vi.spyOn(Transaction.prototype, "build").mockImplementation(
       async function mockBuild(this: Transaction) {
@@ -23,18 +24,29 @@ describe("Seal SDK adapters", () => {
         return Uint8Array.from([1, 2, 3]);
       },
     );
+    let signedMessage: Uint8Array | undefined;
+    const signature = Uint8Array.from({ length: 64 }, (_v, index) => index);
     const builder = new MarketplaceSealApprovalTransactionBuilder({
       suiClient: {} as never,
       packageId: PACKAGE_ID,
+      enclaveId: ENCLAVE_ID,
+      signer: {
+        sign: async (message) => {
+          signedMessage = message;
+          return signature;
+        },
+      },
     });
 
     await expect(builder.build({
       releaseId: RELEASE_ID,
-      licenseId: LICENSE_ID,
-      runnerAddress: RUNNER,
+      requestId: REQUEST_ID,
     })).resolves.toEqual(Uint8Array.from([1, 2, 3]));
 
-    expect(transactionData).toMatchObject({ sender: RUNNER });
+    // Signed message must be exactly bcs(request_id) || bcs(release_id):
+    // 32 raw address bytes each, no sender needed (everything is shared).
+    expect(signedMessage).toHaveLength(64);
+    expect(transactionData).not.toMatchObject({ sender: expect.anything() });
     expect(JSON.stringify(transactionData)).toContain("seal_approve");
     build.mockRestore();
   });

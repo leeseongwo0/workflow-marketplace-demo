@@ -5,20 +5,21 @@ const DEK_LENGTH = 32;
 
 /**
  * Builds the BCS bytes of a PTB that dry-runs a `seal_approve` Move call for
- * the given release/license/runner. Seal key servers evaluate this PTB
- * on-chain and only return key shares if it does not abort.
+ * the given release/request. Seal key servers evaluate this PTB on-chain
+ * and only return key shares if it does not abort.
  *
- * `workflow_marketplace::execution::seal_approve(id, pass, release, clock)`
- * checks `id == bcs::to_bytes(&object::id(release))` — the Seal identity is
- * the release's own object ID (BCS-encoded), NOT `key_id`. See
- * MarketplaceSealApprovalTransactionBuilder for the real implementation.
+ * `workflow_marketplace::execution::seal_approve(id, request, release,
+ * enclave, signature, clock)` checks `id == bcs::to_bytes(&object::id(
+ * release))` (the Seal identity, same as before) and separately verifies
+ * `signature` against `bcs(request_id) || bcs(release_id)` using the
+ * registered `Enclave<T>`'s pubkey. It no longer takes a LicensePass or
+ * care who the tx sender is — authorization is "does a live, unclaimed
+ * ExecutionRequest exist, and did the attested enclave sign for it", not
+ * "who signed the session". See MarketplaceSealApprovalTransactionBuilder
+ * for the real implementation.
  */
 export interface SealApprovalTransactionBuilder {
-  build(input: {
-    releaseId: string;
-    licenseId: string;
-    runnerAddress: string;
-  }): Promise<Uint8Array>;
+  build(input: { releaseId: string; requestId: string }): Promise<Uint8Array>;
 }
 
 /**
@@ -91,10 +92,17 @@ export class SealKeyProvider implements KeyProvider {
     licenseId: string;
     runnerAddress: string;
     sealSession?: unknown;
+    requestId?: string | undefined;
   }): Promise<Uint8Array> {
     if (input.sealSession === undefined) {
-      // Fail closed: without a runner-signed session, decrypt() has no
-      // identity to prove seal_approve's LicensePass check with.
+      // Fail closed: Seal itself still requires a signed session to talk
+      // to key servers, even though seal_approve no longer checks who it
+      // belongs to.
+      throw keyNotFound();
+    }
+    if (input.requestId === undefined) {
+      // Fail closed: without an ExecutionRequest, seal_approve has nothing
+      // to check the enclave signature or claim/expiry state against.
       throw keyNotFound();
     }
     let encryptedDek: Uint8Array;
@@ -107,8 +115,7 @@ export class SealKeyProvider implements KeyProvider {
         }),
         this.#approvalTransactions.build({
           releaseId: input.releaseId,
-          licenseId: input.licenseId,
-          runnerAddress: input.runnerAddress,
+          requestId: input.requestId,
         }),
       ]);
     } catch {

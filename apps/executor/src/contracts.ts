@@ -14,6 +14,12 @@ export interface KeyProvider {
      * LocalDemoKeyProvider ignores this.
      */
     sealSession?: unknown;
+    /**
+     * The buyer-created `ExecutionRequest` object ID that seal_approve now
+     * checks instead of a LicensePass reference directly (see
+     * SealApprovalTransactionBuilder). LocalDemoKeyProvider ignores this.
+     */
+    requestId?: string | undefined;
   }): Promise<Uint8Array>;
 }
 

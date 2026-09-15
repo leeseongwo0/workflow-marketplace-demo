@@ -11,6 +11,7 @@ const KEY_ID = `root:0x${"1".repeat(64)}:release:1.0.0`;
 const RELEASE_ID = `0x${"2".repeat(64)}`;
 const LICENSE_ID = `0x${"3".repeat(64)}`;
 const RUNNER_ADDRESS = `0x${"4".repeat(64)}`;
+const REQUEST_ID = `0x${"5".repeat(64)}`;
 const DEK = Uint8Array.from({ length: 32 }, (_value, index) => index + 1);
 const ENCRYPTED_DEK = Uint8Array.from([9, 9, 9]);
 const APPROVAL_TX_BYTES = Uint8Array.from([7, 7, 7]);
@@ -24,6 +25,7 @@ function request() {
     licenseId: LICENSE_ID,
     runnerAddress: RUNNER_ADDRESS,
     sealSession: SEAL_SESSION,
+    requestId: REQUEST_ID,
   };
 }
 
@@ -97,8 +99,7 @@ describe("SealKeyProvider", () => {
 
     expect(seenApprovalInput).toEqual({
       releaseId: RELEASE_ID,
-      licenseId: LICENSE_ID,
-      runnerAddress: RUNNER_ADDRESS,
+      requestId: REQUEST_ID,
     });
     expect(seenEncryptedDekInput).toEqual({
       keyId: KEY_ID,
@@ -163,6 +164,34 @@ describe("SealKeyProvider", () => {
 
     await expect(
       instance.getDek({ ...request(), sealSession: undefined }),
+    ).rejects.toMatchObject({ code: "KEY_NOT_FOUND" });
+
+    expect(approvalCalled).toBe(false);
+    expect(encryptedDekCalled).toBe(false);
+    expect(decryptCalled).toBe(false);
+  });
+
+  it("fails closed when no requestId is supplied, without contacting adapters", async () => {
+    let approvalCalled = false;
+    let encryptedDekCalled = false;
+    let decryptCalled = false;
+    const instance = provider({
+      approvalTransactions: fakeApprovalTransactions(async () => {
+        approvalCalled = true;
+        return APPROVAL_TX_BYTES;
+      }),
+      encryptedDeks: fakeEncryptedDeks(async () => {
+        encryptedDekCalled = true;
+        return ENCRYPTED_DEK;
+      }),
+      decryptor: fakeDecryptor(async () => {
+        decryptCalled = true;
+        return DEK;
+      }),
+    });
+
+    await expect(
+      instance.getDek({ ...request(), requestId: undefined }),
     ).rejects.toMatchObject({ code: "KEY_NOT_FOUND" });
 
     expect(approvalCalled).toBe(false);
