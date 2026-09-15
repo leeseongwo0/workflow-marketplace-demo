@@ -18,6 +18,8 @@ export interface ExecuteWorkflowParams {
   packageId: string;
   releaseId: string;
   licensePassId: string;
+  enclaveId: string;
+  enclaveKeypair: Ed25519Keypair;
   blobId: string;
   inputs?: Record<string, unknown>;
   customHandlers?: Record<string, StepHandler>;
@@ -26,6 +28,7 @@ export interface ExecuteWorkflowParams {
 export interface ExecuteWorkflowResult {
   decryptedData: Uint8Array;
   receiptId: string;
+  requestId: string;
   workflow: WorkflowDefinition;
   output: unknown;
 }
@@ -39,6 +42,8 @@ export async function executeWorkflow(
     packageId,
     releaseId,
     licensePassId,
+    enclaveId,
+    enclaveKeypair,
     blobId,
     inputs = {},
     customHandlers = {},
@@ -49,12 +54,54 @@ export async function executeWorkflow(
   const encryptedBlob = await downloadFromWalrus(blobId);
   const encryptedBytes = new Uint8Array(encryptedBlob);
 
-  // ── 2. Decrypt via Seal ──
+  // ── 2. Create ExecutionRequest on-chain ──
+  const reqTx = new Transaction();
+  reqTx.moveCall({
+    target: `${packageId}::execution::create_execution_request`,
+    arguments: [
+      reqTx.object(licensePassId),
+      reqTx.object(releaseId),
+      reqTx.object(CLOCK_OBJECT_ID),
+    ],
+  });
+  const reqResult = await suiClient.signAndExecuteTransaction({
+    signer: keypair,
+    transaction: reqTx,
+    include: { effects: true, objectTypes: true },
+  });
+  const reqTxData =
+    reqResult.$kind === "Transaction"
+      ? reqResult.Transaction
+      : reqResult.FailedTransaction;
+  const reqObjTypes: Record<string, string> = reqTxData?.objectTypes ?? {};
+  let requestId: string | undefined;
+  if (reqTxData?.effects?.changedObjects) {
+    for (const obj of reqTxData.effects.changedObjects) {
+      if (obj.idOperation === "Created") {
+        if ((reqObjTypes[obj.objectId] ?? "").includes("::execution::ExecutionRequest")) {
+          requestId = obj.objectId;
+        }
+      }
+    }
+  }
+  if (!requestId) {
+    throw new Error("Failed to create ExecutionRequest on-chain");
+  }
+
+  // ── 3. Decrypt via Seal ──
   const encryptedObject = EncryptedObject.parse(encryptedBytes);
   const fullId = new Uint8Array(encryptedObject.id);
   const packageIdBytes = new Uint8Array(
     Buffer.from(packageId.replace(/^0x/, ""), "hex"),
   );
+
+  // Build enclave signature: bcs(request_id) || bcs(release_id)
+  const requestIdBytes = Buffer.from(requestId.replace(/^0x/, "").padStart(64, "0"), "hex");
+  const releaseIdBytes = Buffer.from(releaseId.replace(/^0x/, "").padStart(64, "0"), "hex");
+  const enclaveMessage = new Uint8Array(64);
+  enclaveMessage.set(requestIdBytes, 0);
+  enclaveMessage.set(releaseIdBytes, 32);
+  const enclaveSignature = await enclaveKeypair.sign(enclaveMessage);
 
   // Build seal_approve PTB for key-server verification
   const sealTx = new Transaction();
@@ -62,8 +109,10 @@ export async function executeWorkflow(
     target: `${packageId}::execution::seal_approve`,
     arguments: [
       sealTx.pure.vector("u8", Array.from(fullId)),
-      sealTx.object(licensePassId),
+      sealTx.object(requestId),
       sealTx.object(releaseId),
+      sealTx.object(enclaveId),
+      sealTx.pure.vector("u8", Array.from(enclaveSignature)),
       sealTx.object(CLOCK_OBJECT_ID),
     ],
   });
@@ -90,13 +139,14 @@ export async function executeWorkflow(
   // Decrypt (AES-256-GCM)
   const decryptedData = await keyStore.decrypt(encryptedObject);
 
-  // ── 3. Record execution on-chain ──
+  // ── 4. Record execution on-chain ──
   const execTx = new Transaction();
   const [receipt] = execTx.moveCall({
     target: `${packageId}::execution::record_execution`,
     arguments: [
       execTx.object(licensePassId),
       execTx.object(releaseId),
+      execTx.object(requestId),
       execTx.object(CLOCK_OBJECT_ID),
     ],
   });
@@ -130,7 +180,7 @@ export async function executeWorkflow(
     throw new Error("Failed to create ExecutionReceipt on-chain");
   }
 
-  // ── 4. Parse and execute workflow ──
+  // ── 5. Parse and execute workflow ──
   const workflow = WorkflowRunner.parse(decryptedData);
   const runner = new WorkflowRunner();
   for (const [action, handler] of Object.entries(customHandlers)) {
@@ -138,5 +188,5 @@ export async function executeWorkflow(
   }
   const output = await runner.run(workflow, inputs);
 
-  return { decryptedData, receiptId, workflow, output };
+  return { decryptedData, receiptId, requestId, workflow, output };
 }

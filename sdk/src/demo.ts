@@ -235,8 +235,49 @@ async function main() {
   console.log(`    tx: ${getDigest(resUpdate)}\n`);
   await sleep(2000);
 
-  // ── Step 6: Buy LicensePass ──
-  console.log("─── Step 6: Buy LicensePass ───");
+  // ── Step 6: Init Enclave Config + Register Enclave ──
+  console.log("─── Step 6: Init Enclave Config + Register Enclave ───");
+
+  const enclaveKeypair = Ed25519Keypair.generate();
+  const enclavePk = enclaveKeypair.getPublicKey().toRawBytes();
+  console.log(`  Enclave public key: ${Buffer.from(enclavePk).toString("base64")}`);
+
+  const txEnclave1 = new Transaction();
+  txEnclave1.moveCall({
+    target: `${PACKAGE_ID}::execution::init_enclave_config`,
+    arguments: [],
+  });
+  const resEnclave1 = await client.signAndExecuteTransaction({
+    signer: keypair,
+    transaction: txEnclave1,
+    include: { effects: true, objectTypes: true },
+  });
+  const enclaveConfigId = findCreatedObject(resEnclave1, "::enclave::EnclaveConfig");
+  console.log(`  ✓ EnclaveConfig created: ${enclaveConfigId}`);
+  console.log(`    tx: ${getDigest(resEnclave1)}`);
+  await sleep(2000);
+
+  const txEnclave2 = new Transaction();
+  txEnclave2.moveCall({
+    target: `${PACKAGE_ID}::enclave::register_enclave`,
+    typeArguments: [`${PACKAGE_ID}::execution::WORKFLOW_MARKETPLACE`],
+    arguments: [
+      txEnclave2.object(enclaveConfigId!),
+      txEnclave2.pure.vector("u8", Array.from(enclavePk)),
+    ],
+  });
+  const resEnclave2 = await client.signAndExecuteTransaction({
+    signer: keypair,
+    transaction: txEnclave2,
+    include: { effects: true, objectTypes: true },
+  });
+  const enclaveId = findCreatedObject(resEnclave2, "::enclave::Enclave");
+  console.log(`  ✓ Enclave registered: ${enclaveId}`);
+  console.log(`    tx: ${getDigest(resEnclave2)}\n`);
+  await sleep(2000);
+
+  // ── Step 7: Buy LicensePass ──
+  console.log("─── Step 7: Buy LicensePass ───");
 
   const tx4 = new Transaction();
   const [coin] = tx4.splitCoins(tx4.gas, [PRICE_LICENSE]);
@@ -265,8 +306,30 @@ async function main() {
   console.log(`    tx: ${getDigest(res4)}\n`);
   await sleep(2000);
 
-  // ── Step 7: Execute Workflow (Decrypt + Record) ──
-  console.log("─── Step 7: Execute Workflow (Decrypt + Record on-chain) ───");
+  // ── Step 8: Create ExecutionRequest ──
+  console.log("─── Step 8: Create ExecutionRequest ───");
+
+  const txReq = new Transaction();
+  txReq.moveCall({
+    target: `${PACKAGE_ID}::execution::create_execution_request`,
+    arguments: [
+      txReq.object(licenseId!),
+      txReq.object(releaseId!),
+      txReq.object(CLOCK),
+    ],
+  });
+  const resReq = await client.signAndExecuteTransaction({
+    signer: keypair,
+    transaction: txReq,
+    include: { effects: true, objectTypes: true },
+  });
+  const executionRequestId = findCreatedObject(resReq, "::execution::ExecutionRequest");
+  console.log(`  ✓ ExecutionRequest created: ${executionRequestId}`);
+  console.log(`    tx: ${getDigest(resReq)}\n`);
+  await sleep(2000);
+
+  // ── Step 9: Execute Workflow (Decrypt + Record) ──
+  console.log("─── Step 9: Execute Workflow (Decrypt + Record on-chain) ───");
 
   console.log("  Downloading encrypted blob from Walrus...");
   const execBlob = await downloadFromWalrus(blobId);
@@ -280,13 +343,23 @@ async function main() {
     Buffer.from(PACKAGE_ID.replace(/^0x/, ""), "hex"),
   );
 
+  // Build enclave signature: bcs(request_id) || bcs(release_id)
+  const reqIdBytes = Buffer.from(executionRequestId!.replace(/^0x/, "").padStart(64, "0"), "hex");
+  const relIdBytes = Buffer.from(releaseId!.replace(/^0x/, "").padStart(64, "0"), "hex");
+  const enclaveMessage = new Uint8Array(64);
+  enclaveMessage.set(reqIdBytes, 0);
+  enclaveMessage.set(relIdBytes, 32);
+  const enclaveSig = await enclaveKeypair.sign(enclaveMessage);
+
   const sealTx = new Transaction();
   sealTx.moveCall({
     target: `${PACKAGE_ID}::execution::seal_approve`,
     arguments: [
       sealTx.pure.vector("u8", Array.from(execFullId)),
-      sealTx.object(licenseId!),
+      sealTx.object(executionRequestId!),
       sealTx.object(releaseId!),
+      sealTx.object(enclaveId!),
+      sealTx.pure.vector("u8", Array.from(enclaveSig)),
       sealTx.object(CLOCK),
     ],
   });
@@ -320,6 +393,7 @@ async function main() {
     arguments: [
       tx6.object(licenseId!),
       tx6.object(releaseId!),
+      tx6.object(executionRequestId!),
       tx6.object(CLOCK),
     ],
   });
@@ -336,8 +410,8 @@ async function main() {
   console.log(`    tx: ${getDigest(res6)}\n`);
   await sleep(2000);
 
-  // ── Step 8: Partial Withdrawal from Vault ──
-  console.log("─── Step 8: Partial Withdrawal from Vault ───");
+  // ── Step 10: Partial Withdrawal from Vault ──
+  console.log("─── Step 10: Partial Withdrawal from Vault ───");
 
   const partialAmount = 25_000_000n;
   const txPartial = new Transaction();
@@ -359,8 +433,8 @@ async function main() {
   console.log(`    tx: ${getDigest(resPartial)}\n`);
   await sleep(2000);
 
-  // ── Step 9: Full Withdrawal from Vault ──
-  console.log("─── Step 9: Full Withdrawal (remaining balance) ───");
+  // ── Step 11: Full Withdrawal from Vault ──
+  console.log("─── Step 11: Full Withdrawal (remaining balance) ───");
 
   const tx5 = new Transaction();
   const [withdrawn] = tx5.moveCall({
