@@ -17,6 +17,8 @@ module workflow_marketplace::marketplace {
     const EPermitReleaseMismatch: u64 = 5;
     const EForkRequiresRoyalty: u64 = 6;
     const EInsufficientBalance: u64 = 7;
+    const ERunsExceedMax: u64 = 8;
+    const EDurationExceedMax: u64 = 9;
 
     public struct MarketplaceConfig has key {
         id: UID,
@@ -50,6 +52,12 @@ module workflow_marketplace::marketplace {
         parent_release_id: ID,
         new_release_id: ID,
         creator: address,
+    }
+
+    public struct RoyaltyVaultCreatedEvent has copy, drop {
+        vault_id: ID,
+        release_id: ID,
+        owner: address,
     }
 
     public struct VaultWithdrawnEvent has copy, drop {
@@ -88,12 +96,18 @@ module workflow_marketplace::marketplace {
         release: &WorkflowRelease,
         ctx: &mut TxContext,
     ) {
-        transfer::share_object(RoyaltyVault {
+        let vault = RoyaltyVault {
             id: object::new(ctx),
             release_id: object::id(release),
             owner: ctx.sender(),
             balance: balance::zero<SUI>(),
+        };
+        event::emit(RoyaltyVaultCreatedEvent {
+            vault_id: object::id(&vault),
+            release_id: object::id(release),
+            owner: ctx.sender(),
         });
+        transfer::share_object(vault);
     }
 
     // ── buy LicensePass (non-fork releases only) ──
@@ -105,7 +119,7 @@ module workflow_marketplace::marketplace {
         payment: Coin<SUI>,
         remaining_runs: Option<u64>,
         expires_at: Option<u64>,
-        _clock: &Clock,
+        clock: &Clock,
         ctx: &mut TxContext,
     ) {
         assert!(agent::release_parent_id(release).is_none(), EForkRequiresRoyalty);
@@ -113,6 +127,7 @@ module workflow_marketplace::marketplace {
         let total = coin::value(&payment);
         assert!(total == agent::release_price_license(release), EInsufficientPayment);
         assert!(vault.release_id == object::id(release), EWrongVault);
+        assert_within_license_terms(release, remaining_runs, expires_at, clock);
 
         let mut payment_balance = coin::into_balance(payment);
 
@@ -154,13 +169,14 @@ module workflow_marketplace::marketplace {
         payment: Coin<SUI>,
         remaining_runs: Option<u64>,
         expires_at: Option<u64>,
-        _clock: &Clock,
+        clock: &Clock,
         ctx: &mut TxContext,
     ) {
         assert!(agent::release_is_listed(release), ENotListed);
         let total = coin::value(&payment);
         assert!(total == agent::release_price_license(release), EInsufficientPayment);
         assert!(vault.release_id == object::id(release), EWrongVault);
+        assert_within_license_terms(release, remaining_runs, expires_at, clock);
 
         let mut payment_balance = coin::into_balance(payment);
 
@@ -301,6 +317,8 @@ module workflow_marketplace::marketplace {
         new_price_license: u64,
         new_price_fork: u64,
         new_royalty_bps: u64,
+        new_max_runs: Option<u64>,
+        new_max_duration_ms: Option<u64>,
         payment: Coin<SUI>,
         clock: &Clock,
         ctx: &mut TxContext,
@@ -330,6 +348,8 @@ module workflow_marketplace::marketplace {
             new_price_license,
             new_price_fork,
             new_royalty_bps,
+            new_max_runs,
+            new_max_duration_ms,
             clock,
             ctx,
         );
@@ -344,6 +364,12 @@ module workflow_marketplace::marketplace {
             balance: balance::zero<SUI>(),
         };
 
+        event::emit(RoyaltyVaultCreatedEvent {
+            vault_id: object::id(&new_vault),
+            release_id: new_release_id,
+            owner: ctx.sender(),
+        });
+
         transfer::share_object(new_vault);
         transfer::public_transfer(release, ctx.sender());
 
@@ -352,6 +378,31 @@ module workflow_marketplace::marketplace {
             new_release_id,
             creator: ctx.sender(),
         });
+    }
+
+    // ── license-term validation (internal helper) ──
+
+    fun assert_within_license_terms(
+        release: &WorkflowRelease,
+        remaining_runs: Option<u64>,
+        expires_at: Option<u64>,
+        clock: &Clock,
+    ) {
+        let max_runs = agent::release_max_runs(release);
+        if (max_runs.is_some()) {
+            assert!(
+                remaining_runs.is_some() && *remaining_runs.borrow() <= *max_runs.borrow(),
+                ERunsExceedMax,
+            );
+        };
+        let max_dur = agent::release_max_duration_ms(release);
+        if (max_dur.is_some()) {
+            let deadline = clock.timestamp_ms() + *max_dur.borrow();
+            assert!(
+                expires_at.is_some() && *expires_at.borrow() <= deadline,
+                EDurationExceedMax,
+            );
+        };
     }
 
     // ── royalty distribution (internal helper) ──
@@ -459,5 +510,10 @@ module workflow_marketplace::marketplace {
             buyer,
             refund_amount,
         });
+    }
+
+    #[test_only]
+    public fun init_for_testing(ctx: &mut TxContext) {
+        init(ctx)
     }
 }

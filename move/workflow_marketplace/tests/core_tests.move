@@ -2,342 +2,337 @@
 module workflow_marketplace::core_tests;
 
 use sui::clock::Clock;
-use sui::coin::{Self, Coin};
+use sui::coin;
 use sui::object;
-use sui::pay;
 use sui::sui::SUI;
 use sui::test_scenario;
-use workflow_marketplace::marketplace;
+use sui::transfer;
+use workflow_marketplace::agent::{Self, WorkflowRelease};
+use workflow_marketplace::license::{Self, LicensePass};
+use workflow_marketplace::marketplace::{Self, MarketplaceConfig, RoyaltyVault};
 
 const CREATOR: address = @0xC0FFEE;
 const BUYER: address = @0xB0B;
-const NON_CREATOR: address = @0xD00D;
-const PRICE_MIST: u64 = 1_000_000;
+const PRICE_LICENSE: u64 = 1_000_000;
+const PRICE_FORK: u64 = 2_000_000;
+const ROYALTY_BPS: u64 = 1000;
+const FEE_BPS: u64 = 200;
 
-fun executor_public_key(): vector<u8> {
-    b"01234567890123456789012345678901"
-}
-
-fun hash_32(): vector<u8> {
-    b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-}
-
-fun publish_release_for_root(
-    scenario: &mut test_scenario::Scenario,
-    root: &mut marketplace::WorkflowRoot,
-    active: bool,
-) {
-    let clock = scenario.take_shared<Clock>();
-    marketplace::publish_release(
-        root,
-        1,
-        0,
-        0,
-        b"Google News RSS Monitor",
-        b"Deterministic test release",
-        b"google_news_rss/v1",
-        b"walrus-test-blob",
-        hash_32(),
-        hash_32(),
-        b"root:release:1.0.0",
-        PRICE_MIST,
-        active,
-        &clock,
-        scenario.ctx(),
-    );
-    test_scenario::return_shared(clock);
-}
-
-fun setup_release(scenario: &mut test_scenario::Scenario, active: bool) {
+fun setup(scenario: &mut test_scenario::Scenario) {
     test_scenario::create_system_objects(scenario);
     marketplace::init_for_testing(scenario.ctx());
-
     scenario.next_tx(CREATOR);
-    let admin_cap = scenario.take_from_sender<marketplace::MarketplaceAdminCap>();
-    marketplace::create_marketplace(admin_cap, executor_public_key(), scenario.ctx());
 
     let clock = scenario.take_shared<Clock>();
-    marketplace::create_workflow_root(
-        b"Google News RSS Monitor",
-        hash_32(),
-        &clock,
-        scenario.ctx(),
+    let profile = agent::create_agent_profile(
+        b"TestAgent".to_string(), &clock, scenario.ctx(),
     );
+    let root = agent::create_workflow_root(
+        &profile, b"Test".to_string(), b"Desc".to_string(),
+        &clock, scenario.ctx(),
+    );
+    let release = agent::create_workflow_release(
+        &root, option::none(), b"1.0.0".to_string(), b"blob".to_string(),
+        PRICE_LICENSE, PRICE_FORK, ROYALTY_BPS,
+        option::none(), option::none(),
+        &clock, scenario.ctx(),
+    );
+    marketplace::create_royalty_vault(&release, scenario.ctx());
+    transfer::public_transfer(profile, CREATOR);
+    transfer::public_transfer(root, CREATOR);
+    transfer::public_share_object(release);
     test_scenario::return_shared(clock);
-
-    scenario.next_tx(CREATOR);
-    let mut root = scenario.take_from_sender<marketplace::WorkflowRoot>();
-    publish_release_for_root(scenario, &mut root, active);
-    test_scenario::return_to_sender(scenario, root);
     scenario.next_tx(CREATOR);
 }
 
 #[test]
-fun creator_can_publish() {
+fun test_create_release() {
     let mut scenario = test_scenario::begin(CREATOR);
-    setup_release(&mut scenario, true);
+    setup(&mut scenario);
 
-    let root = scenario.take_from_sender<marketplace::WorkflowRoot>();
-    assert!(marketplace::latest_release_id(&root).is_some());
-    test_scenario::return_to_sender(&scenario, root);
-
-    let release = scenario.take_shared<marketplace::WorkflowRelease>();
-    assert!(marketplace::release_active(&release));
-    assert!(marketplace::release_price_mist(&release) == PRICE_MIST);
-    assert!(marketplace::release_creator(&release) == CREATOR);
+    let release = scenario.take_shared<WorkflowRelease>();
+    assert!(agent::release_is_listed(&release));
+    assert!(agent::release_price_license(&release) == PRICE_LICENSE);
+    assert!(agent::release_price_fork(&release) == PRICE_FORK);
+    assert!(agent::release_royalty_bps(&release) == ROYALTY_BPS);
+    assert!(agent::release_parent_id(&release).is_none());
     test_scenario::return_shared(release);
-
     scenario.end();
 }
 
-#[test, expected_failure(abort_code = 1)]
-fun non_creator_cannot_publish() {
+#[test]
+fun test_buy_license() {
     let mut scenario = test_scenario::begin(CREATOR);
-    setup_release(&mut scenario, true);
+    setup(&mut scenario);
 
-    scenario.next_tx(NON_CREATOR);
-    let mut root = scenario.take_from_address<marketplace::WorkflowRoot>(CREATOR);
-    publish_release_for_root(&mut scenario, &mut root, true);
+    scenario.next_tx(BUYER);
+    let config = scenario.take_shared<MarketplaceConfig>();
+    let release = scenario.take_shared<WorkflowRelease>();
+    let expected_id = object::id(&release);
+    let mut vault = scenario.take_shared<RoyaltyVault>();
+    let clock = scenario.take_shared<Clock>();
+    let payment = coin::mint_for_testing<SUI>(PRICE_LICENSE, scenario.ctx());
+    marketplace::buy_license(
+        &config, &release, &mut vault, payment,
+        option::some(10u64), option::none(),
+        &clock, scenario.ctx(),
+    );
+    test_scenario::return_shared(clock);
+    test_scenario::return_shared(vault);
+    test_scenario::return_shared(release);
+    test_scenario::return_shared(config);
+
+    scenario.next_tx(BUYER);
+    let pass = scenario.take_from_sender<LicensePass>();
+    assert!(license::license_release_id(&pass) == expected_id);
+    test_scenario::return_to_sender(&scenario, pass);
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = 0)]
+fun test_underpayment_fails() {
+    let mut scenario = test_scenario::begin(CREATOR);
+    setup(&mut scenario);
+
+    scenario.next_tx(BUYER);
+    let config = scenario.take_shared<MarketplaceConfig>();
+    let release = scenario.take_shared<WorkflowRelease>();
+    let mut vault = scenario.take_shared<RoyaltyVault>();
+    let clock = scenario.take_shared<Clock>();
+    let payment = coin::mint_for_testing<SUI>(PRICE_LICENSE - 1, scenario.ctx());
+    marketplace::buy_license(
+        &config, &release, &mut vault, payment,
+        option::none(), option::none(),
+        &clock, scenario.ctx(),
+    );
+
+    abort 1337
+}
+
+#[test, expected_failure(abort_code = 0)]
+fun test_overpayment_fails() {
+    let mut scenario = test_scenario::begin(CREATOR);
+    setup(&mut scenario);
+
+    scenario.next_tx(BUYER);
+    let config = scenario.take_shared<MarketplaceConfig>();
+    let release = scenario.take_shared<WorkflowRelease>();
+    let mut vault = scenario.take_shared<RoyaltyVault>();
+    let clock = scenario.take_shared<Clock>();
+    let payment = coin::mint_for_testing<SUI>(PRICE_LICENSE + 1, scenario.ctx());
+    marketplace::buy_license(
+        &config, &release, &mut vault, payment,
+        option::none(), option::none(),
+        &clock, scenario.ctx(),
+    );
 
     abort 1337
 }
 
 #[test, expected_failure(abort_code = 2)]
-fun inactive_release_cannot_sell() {
+fun test_not_listed_fails() {
     let mut scenario = test_scenario::begin(CREATOR);
-    setup_release(&mut scenario, false);
+    setup(&mut scenario);
 
+    let mut release = scenario.take_shared<WorkflowRelease>();
+    agent::set_listed(&mut release, false, scenario.ctx());
+    test_scenario::return_shared(release);
     scenario.next_tx(BUYER);
-    let mut marketplace = scenario.take_shared<marketplace::Marketplace>();
-    let release = scenario.take_shared<marketplace::WorkflowRelease>();
+
+    let config = scenario.take_shared<MarketplaceConfig>();
+    let release = scenario.take_shared<WorkflowRelease>();
+    let mut vault = scenario.take_shared<RoyaltyVault>();
     let clock = scenario.take_shared<Clock>();
-    let payment = coin::mint_for_testing<SUI>(PRICE_MIST, scenario.ctx());
-    marketplace::purchase_license(
-        &mut marketplace,
-        &release,
-        payment,
-        &clock,
-        scenario.ctx(),
-    );
-
-    abort 1337
-}
-
-#[test, expected_failure(abort_code = 3)]
-fun wrong_payment_aborts() {
-    let mut scenario = test_scenario::begin(CREATOR);
-    setup_release(&mut scenario, true);
-
-    scenario.next_tx(BUYER);
-    let mut marketplace = scenario.take_shared<marketplace::Marketplace>();
-    let release = scenario.take_shared<marketplace::WorkflowRelease>();
-    let clock = scenario.take_shared<Clock>();
-    let payment = coin::mint_for_testing<SUI>(PRICE_MIST + 1, scenario.ctx());
-    marketplace::purchase_license(
-        &mut marketplace,
-        &release,
-        payment,
-        &clock,
-        scenario.ctx(),
-    );
-
-    abort 1337
-}
-
-#[test, expected_failure(abort_code = 3)]
-fun underpayment_aborts() {
-    let mut scenario = test_scenario::begin(CREATOR);
-    setup_release(&mut scenario, true);
-
-    scenario.next_tx(BUYER);
-    let mut marketplace = scenario.take_shared<marketplace::Marketplace>();
-    let release = scenario.take_shared<marketplace::WorkflowRelease>();
-    let clock = scenario.take_shared<Clock>();
-    let payment = coin::mint_for_testing<SUI>(PRICE_MIST - 1, scenario.ctx());
-    marketplace::purchase_license(
-        &mut marketplace,
-        &release,
-        payment,
-        &clock,
-        scenario.ctx(),
+    let payment = coin::mint_for_testing<SUI>(PRICE_LICENSE, scenario.ctx());
+    marketplace::buy_license(
+        &config, &release, &mut vault, payment,
+        option::none(), option::none(),
+        &clock, scenario.ctx(),
     );
 
     abort 1337
 }
 
 #[test]
-fun exact_payment_transfers_funds_and_mints_sender_pass() {
+fun test_set_listed() {
     let mut scenario = test_scenario::begin(CREATOR);
-    setup_release(&mut scenario, true);
+    setup(&mut scenario);
 
-    scenario.next_tx(BUYER);
-    let mut marketplace = scenario.take_shared<marketplace::Marketplace>();
-    let release = scenario.take_shared<marketplace::WorkflowRelease>();
-    let expected_release_id = object::id(&release);
-    let clock = scenario.take_shared<Clock>();
-    let payment = coin::mint_for_testing<SUI>(PRICE_MIST, scenario.ctx());
-    marketplace::purchase_license(
-        &mut marketplace,
-        &release,
-        payment,
-        &clock,
-        scenario.ctx(),
-    );
-    test_scenario::return_shared(clock);
+    let mut release = scenario.take_shared<WorkflowRelease>();
+    assert!(agent::release_is_listed(&release));
+    agent::set_listed(&mut release, false, scenario.ctx());
+    assert!(!agent::release_is_listed(&release));
+    agent::set_listed(&mut release, true, scenario.ctx());
+    assert!(agent::release_is_listed(&release));
     test_scenario::return_shared(release);
-    test_scenario::return_shared(marketplace);
-
-    scenario.next_tx(BUYER);
-    let pass = scenario.take_from_sender<marketplace::LicensePass>();
-    assert!(marketplace::release_id(&pass) == expected_release_id);
-
-    let creator_payment = scenario.take_from_address<Coin<SUI>>(CREATOR);
-    assert!(coin::value(&creator_payment) == PRICE_MIST);
-    pay::keep(creator_payment, scenario.ctx());
-    test_scenario::return_to_sender(&scenario, pass);
-
     scenario.end();
-}
-
-#[test, expected_failure(abort_code = 4)]
-fun duplicate_license_aborts() {
-    let mut scenario = test_scenario::begin(CREATOR);
-    setup_release(&mut scenario, true);
-
-    scenario.next_tx(BUYER);
-    let mut marketplace = scenario.take_shared<marketplace::Marketplace>();
-    let release = scenario.take_shared<marketplace::WorkflowRelease>();
-    let clock = scenario.take_shared<Clock>();
-    let payment = coin::mint_for_testing<SUI>(PRICE_MIST, scenario.ctx());
-    marketplace::purchase_license(
-        &mut marketplace,
-        &release,
-        payment,
-        &clock,
-        scenario.ctx(),
-    );
-    test_scenario::return_shared(clock);
-    test_scenario::return_shared(release);
-    test_scenario::return_shared(marketplace);
-
-    scenario.next_tx(BUYER);
-    let mut marketplace = scenario.take_shared<marketplace::Marketplace>();
-    let release = scenario.take_shared<marketplace::WorkflowRelease>();
-    let clock = scenario.take_shared<Clock>();
-    let payment = coin::mint_for_testing<SUI>(PRICE_MIST, scenario.ctx());
-    marketplace::purchase_license(
-        &mut marketplace,
-        &release,
-        payment,
-        &clock,
-        scenario.ctx(),
-    );
-
-    abort 1337
-}
-
-#[test, expected_failure(abort_code = 11)]
-fun mismatched_root_cannot_change_release_status() {
-    let mut scenario = test_scenario::begin(CREATOR);
-    setup_release(&mut scenario, true);
-
-    let root_one = scenario.take_from_sender<marketplace::WorkflowRoot>();
-    let root_one_id = object::id(&root_one);
-    test_scenario::return_to_sender(&scenario, root_one);
-
-    let clock = scenario.take_shared<Clock>();
-    marketplace::create_workflow_root(
-        b"Second workflow root",
-        hash_32(),
-        &clock,
-        scenario.ctx(),
-    );
-    test_scenario::return_shared(clock);
-
-    scenario.next_tx(CREATOR);
-    let mut root_two = scenario.take_from_sender<marketplace::WorkflowRoot>();
-    publish_release_for_root(&mut scenario, &mut root_two, true);
-    test_scenario::return_to_sender(&scenario, root_two);
-
-    scenario.next_tx(CREATOR);
-    let root_one = scenario.take_from_address_by_id<marketplace::WorkflowRoot>(
-        CREATOR,
-        root_one_id,
-    );
-    let mut release_two = scenario.take_shared<marketplace::WorkflowRelease>();
-    marketplace::set_release_status(
-        &root_one,
-        &mut release_two,
-        false,
-        scenario.ctx(),
-    );
-
-    abort 1337
 }
 
 #[test]
-fun marketplace_admin_cap_is_consumed_after_creation() {
+fun test_withdraw_vault() {
     let mut scenario = test_scenario::begin(CREATOR);
-    test_scenario::create_system_objects(&mut scenario);
-    marketplace::init_for_testing(scenario.ctx());
+    setup(&mut scenario);
+
+    scenario.next_tx(BUYER);
+    let config = scenario.take_shared<MarketplaceConfig>();
+    let release = scenario.take_shared<WorkflowRelease>();
+    let mut vault = scenario.take_shared<RoyaltyVault>();
+    let clock = scenario.take_shared<Clock>();
+    let payment = coin::mint_for_testing<SUI>(PRICE_LICENSE, scenario.ctx());
+    marketplace::buy_license(
+        &config, &release, &mut vault, payment,
+        option::none(), option::none(),
+        &clock, scenario.ctx(),
+    );
+    test_scenario::return_shared(clock);
+    test_scenario::return_shared(vault);
+    test_scenario::return_shared(release);
+    test_scenario::return_shared(config);
 
     scenario.next_tx(CREATOR);
-    assert!(test_scenario::has_most_recent_for_sender<marketplace::MarketplaceAdminCap>(&scenario));
-    let admin_cap = scenario.take_from_sender<marketplace::MarketplaceAdminCap>();
-    marketplace::create_marketplace(admin_cap, executor_public_key(), scenario.ctx());
-
-    scenario.next_tx(CREATOR);
-    assert!(!test_scenario::has_most_recent_for_sender<marketplace::MarketplaceAdminCap>(&scenario));
-    let marketplace = scenario.take_shared<marketplace::Marketplace>();
-    test_scenario::return_shared(marketplace);
+    let mut vault = scenario.take_shared<RoyaltyVault>();
+    let withdrawn = marketplace::withdraw_vault(&mut vault, scenario.ctx());
+    let expected_amount = PRICE_LICENSE - (PRICE_LICENSE * FEE_BPS / 10000);
+    assert!(coin::value(&withdrawn) == expected_amount);
+    transfer::public_transfer(withdrawn, CREATOR);
+    test_scenario::return_shared(vault);
     scenario.end();
 }
 
-#[test, expected_failure(abort_code = 10)]
-fun invalid_executor_key_length_aborts() {
-    let mut scenario = test_scenario::begin(CREATOR);
-    test_scenario::create_system_objects(&mut scenario);
+fun setup_with_limits(
+    scenario: &mut test_scenario::Scenario,
+    max_runs: Option<u64>,
+    max_duration_ms: Option<u64>,
+) {
+    test_scenario::create_system_objects(scenario);
     marketplace::init_for_testing(scenario.ctx());
-
     scenario.next_tx(CREATOR);
-    let admin_cap = scenario.take_from_sender<marketplace::MarketplaceAdminCap>();
-    marketplace::create_marketplace(admin_cap, b"short", scenario.ctx());
+
+    let clock = scenario.take_shared<Clock>();
+    let profile = agent::create_agent_profile(
+        b"TestAgent".to_string(), &clock, scenario.ctx(),
+    );
+    let root = agent::create_workflow_root(
+        &profile, b"Test".to_string(), b"Desc".to_string(),
+        &clock, scenario.ctx(),
+    );
+    let release = agent::create_workflow_release(
+        &root, option::none(), b"1.0.0".to_string(), b"blob".to_string(),
+        PRICE_LICENSE, PRICE_FORK, ROYALTY_BPS,
+        max_runs, max_duration_ms,
+        &clock, scenario.ctx(),
+    );
+    marketplace::create_royalty_vault(&release, scenario.ctx());
+    transfer::public_transfer(profile, CREATOR);
+    transfer::public_transfer(root, CREATOR);
+    transfer::public_share_object(release);
+    test_scenario::return_shared(clock);
+    scenario.next_tx(CREATOR);
+}
+
+#[test]
+fun test_buy_license_within_max_runs() {
+    let mut scenario = test_scenario::begin(CREATOR);
+    setup_with_limits(&mut scenario, option::some(10u64), option::none());
+
+    scenario.next_tx(BUYER);
+    let config = scenario.take_shared<MarketplaceConfig>();
+    let release = scenario.take_shared<WorkflowRelease>();
+    let mut vault = scenario.take_shared<RoyaltyVault>();
+    let clock = scenario.take_shared<Clock>();
+    let payment = coin::mint_for_testing<SUI>(PRICE_LICENSE, scenario.ctx());
+    marketplace::buy_license(
+        &config, &release, &mut vault, payment,
+        option::some(5u64), option::none(),
+        &clock, scenario.ctx(),
+    );
+    test_scenario::return_shared(clock);
+    test_scenario::return_shared(vault);
+    test_scenario::return_shared(release);
+    test_scenario::return_shared(config);
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = 8)]
+fun test_runs_exceed_max_fails() {
+    let mut scenario = test_scenario::begin(CREATOR);
+    setup_with_limits(&mut scenario, option::some(10u64), option::none());
+
+    scenario.next_tx(BUYER);
+    let config = scenario.take_shared<MarketplaceConfig>();
+    let release = scenario.take_shared<WorkflowRelease>();
+    let mut vault = scenario.take_shared<RoyaltyVault>();
+    let clock = scenario.take_shared<Clock>();
+    let payment = coin::mint_for_testing<SUI>(PRICE_LICENSE, scenario.ctx());
+    marketplace::buy_license(
+        &config, &release, &mut vault, payment,
+        option::some(11u64), option::none(),
+        &clock, scenario.ctx(),
+    );
 
     abort 1337
 }
 
-#[test, expected_failure(abort_code = 11)]
-fun unsupported_workflow_type_aborts() {
+#[test, expected_failure(abort_code = 8)]
+fun test_unlimited_runs_when_max_set_fails() {
+    let mut scenario = test_scenario::begin(CREATOR);
+    setup_with_limits(&mut scenario, option::some(10u64), option::none());
+
+    scenario.next_tx(BUYER);
+    let config = scenario.take_shared<MarketplaceConfig>();
+    let release = scenario.take_shared<WorkflowRelease>();
+    let mut vault = scenario.take_shared<RoyaltyVault>();
+    let clock = scenario.take_shared<Clock>();
+    let payment = coin::mint_for_testing<SUI>(PRICE_LICENSE, scenario.ctx());
+    marketplace::buy_license(
+        &config, &release, &mut vault, payment,
+        option::none(), option::none(),
+        &clock, scenario.ctx(),
+    );
+
+    abort 1337
+}
+
+#[test, expected_failure(abort_code = 9)]
+fun test_duration_exceed_max_fails() {
+    let mut scenario = test_scenario::begin(CREATOR);
+    setup_with_limits(&mut scenario, option::none(), option::some(60_000u64));
+
+    scenario.next_tx(BUYER);
+    let config = scenario.take_shared<MarketplaceConfig>();
+    let release = scenario.take_shared<WorkflowRelease>();
+    let mut vault = scenario.take_shared<RoyaltyVault>();
+    let clock = scenario.take_shared<Clock>();
+    let payment = coin::mint_for_testing<SUI>(PRICE_LICENSE, scenario.ctx());
+    marketplace::buy_license(
+        &config, &release, &mut vault, payment,
+        option::none(), option::some(60_001u64),
+        &clock, scenario.ctx(),
+    );
+
+    abort 1337
+}
+
+#[test, expected_failure(abort_code = 0)]
+fun test_royalty_too_high() {
     let mut scenario = test_scenario::begin(CREATOR);
     test_scenario::create_system_objects(&mut scenario);
-    let clock = scenario.take_shared<Clock>();
-    marketplace::create_workflow_root(
-        b"Unsupported workflow",
-        hash_32(),
-        &clock,
-        scenario.ctx(),
-    );
-    test_scenario::return_shared(clock);
-
+    marketplace::init_for_testing(scenario.ctx());
     scenario.next_tx(CREATOR);
-    let mut root = scenario.take_from_sender<marketplace::WorkflowRoot>();
+
     let clock = scenario.take_shared<Clock>();
-    marketplace::publish_release(
-        &mut root,
-        1,
-        0,
-        0,
-        b"Unsupported workflow",
-        b"Must be rejected",
-        b"arbitrary_code/v1",
-        b"walrus-test-blob",
-        hash_32(),
-        hash_32(),
-        b"root:release:1.0.0",
-        PRICE_MIST,
-        true,
-        &clock,
-        scenario.ctx(),
+    let profile = agent::create_agent_profile(
+        b"Agent".to_string(), &clock, scenario.ctx(),
+    );
+    let root = agent::create_workflow_root(
+        &profile, b"R".to_string(), b"D".to_string(),
+        &clock, scenario.ctx(),
+    );
+    let _release = agent::create_workflow_release(
+        &root, option::none(), b"1.0.0".to_string(), b"b".to_string(),
+        PRICE_LICENSE, PRICE_FORK, 5001,
+        option::none(), option::none(),
+        &clock, scenario.ctx(),
     );
 
     abort 1337
