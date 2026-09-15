@@ -16,7 +16,10 @@ export function Layout() {
   const handleGetStarted = () => setShowWalletModal(true);
 
   return (
-    <div className="min-h-screen bg-panel text-ink">
+    // Default foreground is light. `text-ink` used to sit here, which is the
+    // near-black page colour, so anything that did not set its own text colour
+    // rendered invisible against a dark surface.
+    <div className="min-h-screen bg-panel text-white">
       <header className="border-b border-line sticky top-0 z-20 bg-panel">
         <div className="container mx-auto px-5 py-4">
           <div className="flex justify-between items-center">

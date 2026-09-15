@@ -54,7 +54,7 @@ export function AccountMenu() {
       {open && (
         <div
           role="menu"
-          className="fm-dialog-enter absolute right-0 mt-2 w-64 rounded-2xl border border-line bg-panel p-2 shadow-2xl z-30"
+          className="fm-dialog-enter absolute right-0 mt-2 w-64 rounded-2xl border border-line bg-panel p-2 text-white shadow-2xl z-30"
         >
           {accounts.length > 1 && (
             <p className="px-3 pt-2 pb-1 text-xs text-muted">계정 선택</p>
