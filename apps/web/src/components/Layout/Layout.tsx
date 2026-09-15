@@ -1,30 +1,19 @@
 import { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { useCurrentAccount, useCurrentNetwork, useDAppKit } from "@mysten/dapp-kit-react";
-import { truncateAddress } from "../../lib/address";
+import { useCurrentAccount, useCurrentNetwork } from "@mysten/dapp-kit-react";
 import { useLoadLiveRelease } from "../../live/live-release";
-import { useToast } from "../Toast/ToastProvider";
+import { AccountMenu } from "../AccountMenu";
 import { WalletModal } from "../WalletModal";
 
 export function Layout() {
   const account = useCurrentAccount();
   const network = useCurrentNetwork();
-  const dAppKit = useDAppKit();
   const location = useLocation();
-  const addToast = useToast().addToast;
   const [showWalletModal, setShowWalletModal] = useState(false);
 
   useLoadLiveRelease();
 
-  const handleGetStarted = () => {
-    if (account === null) {
-      setShowWalletModal(true);
-      return;
-    }
-    dAppKit.disconnectWallet().catch(() => {
-      addToast("Failed to disconnect wallet. Please try again.", "error");
-    });
-  };
+  const handleGetStarted = () => setShowWalletModal(true);
 
   return (
     <div className="min-h-screen bg-panel text-ink">
@@ -52,14 +41,17 @@ export function Layout() {
                 <span className="h-1.5 w-1.5 rounded-full bg-mint" aria-hidden="true" />
                 {network}
               </span>
-              <button
-                type="button"
-                onClick={handleGetStarted}
-                title={account === null ? undefined : "클릭하면 지갑 연결이 해제됩니다"}
-                className="rounded-2xl bg-blue px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-blue/20 hover:opacity-90 transition"
-              >
-                {account === null ? "Get Started" : truncateAddress(account.address)}
-              </button>
+              {account === null ? (
+                <button
+                  type="button"
+                  onClick={handleGetStarted}
+                  className="rounded-2xl bg-blue px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-blue/20 hover:opacity-90"
+                >
+                  Get Started
+                </button>
+              ) : (
+                <AccountMenu />
+              )}
             </nav>
           </div>
         </div>
