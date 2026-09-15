@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search as SearchIcon } from "lucide-react";
 import { formatSui } from "../lib/sui-amount";
+import { useRegisteredWorkflows } from "../live/use-register-workflow";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 export default function Search() {
@@ -9,6 +10,7 @@ export default function Search() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const workflows = useWorkflowStore((s) => s.workflows);
+  const { workflows: registered } = useRegisteredWorkflows();
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -22,11 +24,22 @@ export default function Search() {
     [workflows],
   );
 
+  // Chain-derived entries live in the catalog so detail links resolve, but they
+  // are only this wallet's while it stays connected — search the live list
+  // instead of whatever is left in the store.
+  const searchable = useMemo(() => {
+    const registeredIds = new Set(registered.map((w) => w.id));
+    return [
+      ...registered,
+      ...workflows.filter((w) => w.onChainOnly !== true && !registeredIds.has(w.id)),
+    ];
+  }, [workflows, registered]);
+
   const trimmedQuery = query.trim().toLowerCase();
   // Search only matches this fixed 14-item dummy catalog (workflow a-d, workflow 1-10).
   // Revisit this filter once a real workflow catalog/backend replaces the mock store.
   const results = trimmedQuery
-    ? workflows.filter((w) => w.name.toLowerCase().includes(trimmedQuery))
+    ? searchable.filter((w) => w.name.toLowerCase().includes(trimmedQuery))
     : null;
 
   return (

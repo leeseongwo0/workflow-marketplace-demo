@@ -17,7 +17,16 @@ export default function Marketplace() {
     const registeredIds = new Set(registered.map((w) => w.id));
     return [
       ...registered,
-      ...workflows.filter((w) => w.category === "featured" && !registeredIds.has(w.id)),
+      // Chain-derived entries are mirrored into the catalog so detail pages can
+      // resolve their ids, but they must only be listed while the wallet that
+      // owns them is connected — otherwise they linger after a disconnect or
+      // an account switch and appear to belong to whoever is looking.
+      ...workflows.filter(
+        (w) =>
+          w.category === "featured" &&
+          w.onChainOnly !== true &&
+          !registeredIds.has(w.id),
+      ),
     ];
   }, [workflows, registered]);
 
