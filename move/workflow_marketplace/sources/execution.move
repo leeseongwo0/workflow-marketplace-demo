@@ -121,7 +121,10 @@ module workflow_marketplace::execution {
         assert!(request.release_id == object::id(release), ERequestReleaseMismatch);
         let expected = bcs::to_bytes(&object::id(release));
         assert!(id == expected, ESealIdentityMismatch);
-        enclave::verify_signature(enclave, &signature, &id);
+        // Bind signature to this specific request to prevent replay
+        let mut message = bcs::to_bytes(&object::id(request));
+        message.append(expected);
+        enclave::verify_signature(enclave, &signature, &message);
     }
 
     #[test_only]
