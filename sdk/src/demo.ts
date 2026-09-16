@@ -138,6 +138,8 @@ async function main() {
       tx3.pure.u64(PRICE_LICENSE),
       tx3.pure.u64(PRICE_FORK),
       tx3.pure.u64(ROYALTY_BPS),
+      tx3.pure(bcs.option(bcs.u64()).serialize(null).toBytes()),
+      tx3.pure(bcs.option(bcs.u64()).serialize(null).toBytes()),
       tx3.object(CLOCK),
     ],
   });
@@ -147,7 +149,11 @@ async function main() {
     arguments: [release],
   });
 
-  tx3.transferObjects([release], sender);
+  tx3.moveCall({
+    target: `0x2::transfer::public_share_object`,
+    typeArguments: [`${PACKAGE_ID}::agent::WorkflowRelease`],
+    arguments: [release],
+  });
 
   const res3 = await client.signAndExecuteTransaction({
     signer: keypair,
