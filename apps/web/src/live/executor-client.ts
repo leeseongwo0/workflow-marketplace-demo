@@ -273,8 +273,14 @@ async function postJson(input: {
 }): Promise<unknown> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), input.timeoutMs);
+  // Pulled into a local before calling. `input.fetch(...)` would run fetch as a
+  // method of this options object, and the browser's fetch refuses any `this`
+  // that is not the window: it throws "Illegal invocation", which this function
+  // then reports as an unreachable executor. Node's fetch does not care, so
+  // tests and the CLI script never saw it.
+  const doFetch = input.fetch;
   try {
-    const response = await input.fetch(input.url, {
+    const response = await doFetch(input.url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(input.body),
@@ -321,7 +327,7 @@ export class ExecutorClient {
 
   constructor(input: { baseUrl: string; fetch?: FetchLike; now?: () => number }) {
     this.#baseUrl = input.baseUrl;
-    this.#fetch = input.fetch ?? globalThis.fetch;
+    this.#fetch = input.fetch ?? globalThis.fetch.bind(globalThis);
     this.#now = input.now ?? Date.now;
   }
 

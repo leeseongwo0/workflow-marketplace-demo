@@ -583,3 +583,37 @@ describe("ExecutorClient", () => {
     }
   });
 });
+
+describe("executor fetch invocation", () => {
+  it("never calls fetch as a method of the request options", async () => {
+    // Browsers throw "Illegal invocation" when fetch runs with a `this` that is
+    // not the window, so calling `options.fetch(...)` breaks the app while
+    // leaving Node-based tests green. Asserting on the receiver is the only way
+    // to catch that here.
+    const receivers: unknown[] = [];
+    const recordingFetch = function (this: unknown): Promise<Response> {
+      receivers.push(this);
+      return Promise.resolve(
+        new Response(JSON.stringify({ error: { code: "NOPE", message: "stop here" } }), {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    };
+
+    const client = new ExecutorClient({
+      baseUrl: "http://127.0.0.1:3001",
+      fetch: recordingFetch as unknown as typeof fetch,
+    });
+    await expect(client.createChallenge({
+      runnerAddress: `0x${"1".repeat(64)}`,
+      releaseId: `0x${"2".repeat(64)}`,
+      licenseId: `0x${"3".repeat(64)}`,
+      query: "Sui",
+    })).rejects.toThrow();
+
+    expect(receivers).toHaveLength(1);
+    const receiver = receivers[0];
+    expect(receiver === undefined || receiver === globalThis).toBe(true);
+  });
+});
