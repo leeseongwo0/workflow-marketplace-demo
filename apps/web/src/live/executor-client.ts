@@ -66,9 +66,13 @@ export const executionResponseSchema = z.strictObject({
     outputHash: hashSchema,
   }),
   trace: z.array(
+    // Mirrors the executor's own trace union. An unknown value fails the whole
+    // response, so this has to include steps the Seal-enabled executor emits
+    // even though the LocalDemoKeyProvider path never reaches them.
     z.enum([
       "WALLET_SIGNATURE_VERIFIED",
       "LICENSE_VERIFIED",
+      "SEAL_SESSION_VERIFIED",
       "WALRUS_BLOB_VERIFIED",
       "BUNDLE_DECRYPTED_LOCAL_SERVER",
       "RSS_FETCHED",
