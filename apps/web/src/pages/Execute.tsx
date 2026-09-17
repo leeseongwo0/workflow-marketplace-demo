@@ -168,7 +168,9 @@ export default function Execute() {
                 </dl>
 
                 <p className="mt-4 text-xs text-muted">
-                  executor의 서명이 Marketplace에 등록된 공개키와 일치하는 것을 확인했습니다.
+                  영수증의 내용과 executor 서명이 서로 일치하는 것을 확인했습니다. 이
+                  서명을 대조할 공개키는 배포된 컨트랙트에 등록되어 있지 않으므로,
+                  executor가 제시한 키를 그대로 사용했습니다.
                 </p>
 
                 {execute.recorded !== undefined ? (
@@ -180,14 +182,10 @@ export default function Execute() {
                   <button
                     type="button"
                     onClick={() => void execute.record()}
-                    disabled={execute.recordStatus === "signing" || execute.recordStatus === "confirming"}
+                    disabled={execute.recordStatusLabel !== undefined}
                     className="mt-4 w-full rounded-xl bg-blue px-4 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
                   >
-                    {execute.recordStatus === "signing"
-                      ? "지갑 서명 대기 중…"
-                      : execute.recordStatus === "confirming"
-                        ? "체인 확정 대기 중…"
-                        : "체인에 기록하기"}
+                    {execute.recordStatusLabel ?? "체인에 기록하기"}
                   </button>
                 )}
               </Panel>
