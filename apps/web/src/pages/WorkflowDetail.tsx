@@ -30,11 +30,11 @@ export default function WorkflowDetail() {
   const [editDraft, setEditDraft] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [showPurchase, setShowPurchase] = useState(false);
-  const purchase = usePurchaseLicense();
   const cameFromSearch = (location.state as { from?: string } | null)?.from === "search";
   // Evaluated on render, not inside the modal, so landing on the page with
   // ?rehearsal=1 registers the flag for the rest of the session.
   const rehearsalEnabled = isRehearsalEnabled(location.search);
+  const purchase = usePurchaseLicense({ allowRepurchase: rehearsalEnabled });
 
   if (!workflow) {
     return (

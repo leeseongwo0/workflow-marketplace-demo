@@ -59,7 +59,17 @@ async function findLicenseWithRetry(input: Parameters<typeof findOwnedLicense>[0
   return undefined;
 }
 
-export function usePurchaseLicense() {
+/**
+ * `allowRepurchase` is wired to rehearsal mode, not left on by default.
+ *
+ * The deployed contract keeps no buyer registry, so it happily sells a second
+ * LicensePass to an address that already holds one — the "already owned" stop
+ * below is this app's, to keep someone from paying twice by accident. During
+ * rehearsal that stop is what prevents practising the real purchase, so it is
+ * lifted there and nowhere else.
+ */
+export function usePurchaseLicense(options?: { allowRepurchase?: boolean }) {
+  const allowRepurchase = options?.allowRepurchase ?? false;
   const account = useCurrentAccount();
   const client = useCurrentClient();
   const network = useCurrentNetwork();
@@ -119,15 +129,17 @@ export function usePurchaseLicense() {
 
     try {
       const owner = account.address;
-      const alreadyOwned = await findOwnedLicense({
-        client,
-        packageId: webConfig.packageId,
-        owner,
-        releaseId: release.id,
-      });
-      if (alreadyOwned !== undefined) {
-        fail("already_owned");
-        return;
+      if (!allowRepurchase) {
+        const alreadyOwned = await findOwnedLicense({
+          client,
+          packageId: webConfig.packageId,
+          owner,
+          releaseId: release.id,
+        });
+        if (alreadyOwned !== undefined) {
+          fail("already_owned");
+          return;
+        }
       }
 
       setStatus("signing");
