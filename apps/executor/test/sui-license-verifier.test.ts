@@ -36,6 +36,8 @@ const workflowReleaseBcs = bcs.struct("TestWorkflowRelease", {
   price_license: bcs.u64(),
   price_fork: bcs.u64(),
   royalty_bps: bcs.u64(),
+  max_runs: bcs.option(bcs.u64()),
+  max_duration_ms: bcs.option(bcs.u64()),
   is_listed: bcs.bool(),
   created_at: bcs.u64(),
 });
@@ -81,6 +83,8 @@ function releaseContent(
       price_license: 100n,
       price_fork: 200n,
       royalty_bps: 500n,
+      max_runs: null,
+      max_duration_ms: null,
       is_listed: overrides.isListed ?? true,
       created_at: 1723900000000n,
     })

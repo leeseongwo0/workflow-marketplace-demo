@@ -31,6 +31,11 @@ const workflowReleaseBcs = bcs.struct("WorkflowRelease", {
   price_license: bcs.u64(),
   price_fork: bcs.u64(),
   royalty_bps: bcs.u64(),
+  // BCS has no field names on the wire — these two must stay here, between
+  // royalty_bps and is_listed, to match agent.move's current struct order,
+  // or every field after them (is_listed included) silently misparses.
+  max_runs: bcs.option(bcs.u64()),
+  max_duration_ms: bcs.option(bcs.u64()),
   is_listed: bcs.bool(),
   created_at: bcs.u64(),
 });
