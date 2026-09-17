@@ -78,7 +78,7 @@ export async function createExecutorRuntime(
   const rssLoader = new HttpRssFeedLoader();
   const executionService = new ExecutionService({
     challenges,
-    walletVerifier: new SuiPersonalMessageVerifier(),
+    walletVerifier: new SuiPersonalMessageVerifier(suiClient),
     licenseVerifier: suiVerifier,
     releaseProvider,
     blobStore,

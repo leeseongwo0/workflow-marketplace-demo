@@ -198,7 +198,7 @@ describe("Sui personal-message verification", () => {
     const { store } = challengeStore();
     const challenge = issueChallenge(store, wallet.toSuiAddress());
     const signature = (await wallet.signPersonalMessage(challenge.message)).signature;
-    const verifier = new SuiPersonalMessageVerifier();
+    const verifier = new SuiPersonalMessageVerifier({} as never);
 
     await expect(
       verifier.verify({
@@ -213,7 +213,7 @@ describe("Sui personal-message verification", () => {
     const { store } = challengeStore();
     const challenge = issueChallenge(store, wallet.toSuiAddress());
     const signature = (await wallet.signPersonalMessage(challenge.message)).signature;
-    const verifier = new SuiPersonalMessageVerifier();
+    const verifier = new SuiPersonalMessageVerifier({} as never);
     const modifiedMessage = challenge.message.slice();
     modifiedMessage[0] = (modifiedMessage[0] ?? 0) ^ 1;
 
@@ -236,7 +236,7 @@ describe("Sui personal-message verification", () => {
   it("rejects malformed signatures without consuming the challenge", async () => {
     const { store } = challengeStore();
     issueChallenge(store, wallet.toSuiAddress());
-    const verifier = new SuiPersonalMessageVerifier();
+    const verifier = new SuiPersonalMessageVerifier({} as never);
 
     await expect(
       verifier.verify({

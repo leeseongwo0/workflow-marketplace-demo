@@ -223,7 +223,7 @@ async function makeHarness(overrides: HarnessOverrides = {}) {
   };
   const service = new ExecutionService({
     challenges: challengeStore,
-    walletVerifier: overrides.walletVerifier ?? new SuiPersonalMessageVerifier(),
+    walletVerifier: overrides.walletVerifier ?? new SuiPersonalMessageVerifier({} as never),
     licenseVerifier: overrides.licenseVerifier ?? defaultLicenseVerifier,
     releaseProvider: overrides.releaseProvider ?? defaultReleaseProvider,
     blobStore: overrides.blobStore ?? defaultBlobStore,
