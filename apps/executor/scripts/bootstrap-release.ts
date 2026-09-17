@@ -8,6 +8,7 @@ import {
   WalrusBlobStore,
   prepareAndUploadEncryptedWorkflow,
   parsePhase3Env,
+  storeLocalExecutionBindings,
 } from "../src/index.js";
 
 const CLOCK_OBJECT_ID = "0x6";
@@ -219,12 +220,32 @@ async function main(): Promise<void> {
   });
   console.log("\nblob_id set on release.");
 
+  // ── Step 6: record executionBindings locally — the chain has nowhere to
+  // store encryptedBundleHash/publicManifestHash/keyId today, so
+  // LocalBindingsReleaseProvider reads them from this trusted local file
+  // instead (see execution-bindings-writer.ts). Written under the SAME
+  // path start.ts's LOCAL_EXECUTION_BINDINGS_PATH default points at.
+  await storeLocalExecutionBindings({
+    bindingsPath:
+      process.env["LOCAL_EXECUTION_BINDINGS_PATH"] ??
+      "./data/local-execution-bindings.json",
+    releaseId,
+    bindings: {
+      workflowType: "google_news_rss/v1",
+      encryptedBundleHash: prepared.encryptedBundleHash,
+      publicManifestHash: prepared.publicManifestHash,
+      keyId: prepared.keyId,
+    },
+  });
+  console.log("execution bindings recorded locally.");
+
   console.log("\n=== paste into .env ===");
   console.log(`WORKFLOW_ROOT_ID=${workflowRootId}`);
   console.log(`WORKFLOW_RELEASE_ID=${releaseId}`);
   console.log(`VITE_WORKFLOW_RELEASE_ID=${releaseId}`);
   console.log("\n(RoyaltyVault, AgentProfile, keyId, hashes above are not .env values —");
-  console.log(" the executor derives them by reading the release object on-chain.)");
+  console.log(" the executor derives them by reading the release object on-chain");
+  console.log(" plus data/local-execution-bindings.json.)");
 }
 
 main().catch((error) => {

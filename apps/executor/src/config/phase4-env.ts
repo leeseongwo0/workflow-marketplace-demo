@@ -79,6 +79,14 @@ const phase4EnvSchema = z.object({
   ).default(10_000),
   WALRUS_MAX_BLOB_BYTES: positiveInteger(MAX_BLOB_BYTES).default(1_048_576),
   LOCAL_KEYRING_PATH: z.string().trim().min(1).default("./data/local-keyring.json"),
+  /** See LocalBindingsReleaseProvider: the chain has nowhere to store
+   * executionBindings yet, so this local file is the LocalDemoKeyProvider
+   * path's stand-in trust boundary for them. */
+  LOCAL_EXECUTION_BINDINGS_PATH: z
+    .string()
+    .trim()
+    .min(1)
+    .default("./data/local-execution-bindings.json"),
   EXECUTOR_PRIVATE_KEY: z.string().trim().min(1).optional(),
   /** Path to the enclave-attested identity key written by the sibling Rust
    * process (see write_enclave_identity_key). When set, this is used
@@ -111,6 +119,7 @@ export function parsePhase4Env(
     WALRUS_READ_TIMEOUT_MS: env["WALRUS_READ_TIMEOUT_MS"],
     WALRUS_MAX_BLOB_BYTES: env["WALRUS_MAX_BLOB_BYTES"],
     LOCAL_KEYRING_PATH: env["LOCAL_KEYRING_PATH"],
+    LOCAL_EXECUTION_BINDINGS_PATH: env["LOCAL_EXECUTION_BINDINGS_PATH"],
     EXECUTOR_PRIVATE_KEY: env["EXECUTOR_PRIVATE_KEY"],
     ENCLAVE_IDENTITY_KEY_PATH: env["ENCLAVE_IDENTITY_KEY_PATH"],
     EXECUTOR_HOST: env["EXECUTOR_HOST"],

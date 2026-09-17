@@ -9,6 +9,7 @@ import { loadEnclaveIdentityKey } from "./identity/enclave-identity.js";
 import { LocalDemoKeyProvider } from "./key-provider/local-demo-key-provider.js";
 import { Ed25519ReceiptSigner } from "./receipt/ed25519-receipt-signer.js";
 import { HttpRssFeedLoader } from "./rss/http-rss-feed-loader.js";
+import { LocalBindingsReleaseProvider } from "./sui/local-bindings-release-provider.js";
 import { SuiGrpcObjectReader } from "./sui/sui-grpc-object-reader.js";
 import { SuiLicenseVerifier } from "./sui/sui-license-verifier.js";
 import { SystemClock } from "./system-clock.js";
@@ -41,6 +42,13 @@ export async function createExecutorRuntime(
     reader: objectReader,
     packageId: env.SUI_PACKAGE_ID,
   });
+  // The chain has nowhere to store executionBindings yet (see
+  // LocalBindingsReleaseProvider); this fills them in from a local trusted
+  // file, matching LocalDemoKeyProvider's own local-trust boundary below.
+  const releaseProvider = new LocalBindingsReleaseProvider({
+    inner: suiVerifier,
+    bindingsPath: env.LOCAL_EXECUTION_BINDINGS_PATH,
+  });
   const blobStore = new WalrusBlobStore({
     baseUrl: env.WALRUS_AGGREGATOR_URL,
     timeoutMs: env.WALRUS_READ_TIMEOUT_MS,
@@ -72,7 +80,7 @@ export async function createExecutorRuntime(
     challenges,
     walletVerifier: new SuiPersonalMessageVerifier(),
     licenseVerifier: suiVerifier,
-    releaseProvider: suiVerifier,
+    releaseProvider,
     blobStore,
     keyProvider,
     loadFeed: rssLoader.load.bind(rssLoader),
