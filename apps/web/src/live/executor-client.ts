@@ -1,5 +1,6 @@
-import { canonicalJsonBytes } from "@aiwf/shared";
+import { canonicalJsonBytes, encodeReceiptMessageBcs } from "@aiwf/shared";
 import { normalizeQuery } from "@aiwf/workflow-google-news";
+import { Ed25519PublicKey } from "@mysten/sui/keypairs/ed25519";
 import { normalizeSuiAddress } from "@mysten/sui/utils";
 import { z } from "zod";
 
@@ -387,4 +388,103 @@ export class ExecutorClient {
     }
     return parsed.data;
   }
+}
+
+const verifiedReceiptBrand: unique symbol = Symbol("verifiedReceipt");
+
+export interface VerifiedReceipt {
+  readonly [verifiedReceiptBrand]: true;
+  readonly payload: ExecutionReceiptDto["payload"];
+  readonly signature: Uint8Array;
+  readonly bcsBytes: Uint8Array;
+  readonly executorPublicKey: Uint8Array;
+  readonly executorKeyFingerprint: string;
+}
+
+function hexBytes(value: string): Uint8Array {
+  if (!/^[0-9a-f]{64}$/u.test(value)) throw new Error("Receipt hash is invalid");
+  return Uint8Array.from(
+    value.match(/.{2}/gu)?.map((byte) => Number.parseInt(byte, 16)) ?? [],
+  );
+}
+
+function decodeFixedBase64(
+  value: string,
+  length: number | undefined,
+  label: string,
+): Uint8Array {
+  let binary: string;
+  try {
+    binary = atob(value);
+  } catch {
+    throw new Error(`${label} is not base64`);
+  }
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  if ((length !== undefined && bytes.length !== length) || btoa(binary) !== value) {
+    throw new Error(`${label} has an invalid length or encoding`);
+  }
+  return bytes;
+}
+
+function bytesHex(value: Uint8Array): string {
+  return Array.from(value, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Checks that the receipt really covers this execution and that the executor
+ * signed the bytes it claims to have signed.
+ *
+ * What it can no longer do is tie the signing key to an identity: the deployed
+ * package has no executor public key on it, so the key is only ever the one the
+ * executor itself supplied. The fingerprint is returned so the same key can at
+ * least be recognised across runs.
+ */
+export async function verifyExecutionReceipt(input: {
+  receipt: ExecutionReceiptDto;
+  expectedReleaseId: string;
+  expectedLicenseId: string;
+  expectedRunner: string;
+}): Promise<VerifiedReceipt> {
+  const payload = input.receipt.payload;
+  if (
+    payload.releaseId !== normalizeSuiAddress(input.expectedReleaseId) ||
+    payload.licenseId !== normalizeSuiAddress(input.expectedLicenseId) ||
+    payload.runner !== normalizeSuiAddress(input.expectedRunner)
+  ) {
+    throw new Error("Receipt identity does not match this execution");
+  }
+  const bcsBytes = decodeFixedBase64(input.receipt.bcsBase64, undefined, "Receipt BCS");
+  const signature = decodeFixedBase64(input.receipt.signatureBase64, 64, "Receipt signature");
+  const executorPublicKey = decodeFixedBase64(
+    input.receipt.executorPublicKeyBase64,
+    32,
+    "Executor public key",
+  );
+  const expectedBcs = encodeReceiptMessageBcs({
+    releaseId: payload.releaseId,
+    licenseId: payload.licenseId,
+    runner: payload.runner,
+    inputHash: hexBytes(payload.inputHash),
+    outputHash: hexBytes(payload.outputHash),
+    executedAtMs: BigInt(payload.executedAtMs),
+    nonceHash: hexBytes(payload.nonceHash),
+  });
+  if (!equalBytes(bcsBytes, expectedBcs)) {
+    throw new Error("Receipt BCS does not match the signed payload");
+  }
+  const publicKey = new Ed25519PublicKey(executorPublicKey);
+  if (!(await publicKey.verify(bcsBytes, signature))) {
+    throw new Error("Receipt signature is invalid");
+  }
+  const fingerprintBytes = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", executorPublicKey.slice().buffer),
+  );
+  return {
+    [verifiedReceiptBrand]: true,
+    payload,
+    signature,
+    bcsBytes,
+    executorPublicKey,
+    executorKeyFingerprint: bytesHex(fingerprintBytes).slice(0, 16),
+  };
 }

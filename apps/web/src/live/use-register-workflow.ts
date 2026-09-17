@@ -5,23 +5,25 @@ import type { Workflow } from "../stores/workflow-store";
 import { useWorkflowStore } from "../stores/workflow-store";
 import { webConfig } from "./config";
 import {
-  buildCreateWorkflowRootTransaction,
-  buildPublishReleaseTransaction,
-  findOwnedRoots,
+  buildRegisterWorkflowTransaction,
+  findOwnedAgentProfile,
 } from "./registration";
-import { loadRelease } from "./sui-objects";
+import {
+  listRegisteredReleases,
+  rememberRegisteredRelease,
+} from "./registered-releases";
+import { loadRelease, loadRoot } from "./sui-objects";
+import { findCreatedObjects, requireCreated } from "./tx-effects";
 
 export type RegisterStatus =
   | "idle"
-  | "creating_root"
   | "publishing"
   | "confirming"
   | "success"
   | "error";
 
 const STEP_LABEL: Partial<Record<RegisterStatus, string>> = {
-  creating_root: "워크플로 루트를 만드는 중… (지갑 서명 1/2)",
-  publishing: "워크플로를 등록하는 중… (지갑 서명 2/2)",
+  publishing: "워크플로를 등록하는 중… (지갑 서명)",
   confirming: "체인에서 등록이 확정되기를 기다리는 중…",
 };
 
@@ -35,6 +37,10 @@ function messageFor(cause: unknown): string {
     return "테스트넷 SUI 잔액이 부족합니다. faucet으로 충전한 뒤 다시 시도해 주세요.";
   }
   return raw;
+}
+
+function shortAddress(value: string): string {
+  return `${value.slice(0, 6)}…${value.slice(-4)}`;
 }
 
 /** Chain-backed listings this wallet published, newest first. */
@@ -61,18 +67,21 @@ export function useRegisteredWorkflows(): {
     let cancelled = false;
     setLoading(true);
     const packageId = webConfig.packageId;
+    const owner = account.address;
 
     void (async () => {
       try {
-        const roots = await findOwnedRoots({ client, packageId, owner: account.address });
-        const releaseIds = roots
-          .map((root) => root.latestReleaseId)
-          .filter((id): id is string => id !== undefined);
-
-        const releases = await Promise.all(
-          releaseIds.map(async (releaseId) => {
+        // The ids come from this browser, everything shown comes from chain:
+        // a release that no longer reads back simply drops out of the list.
+        const entries = listRegisteredReleases(owner);
+        const loaded = await Promise.all(
+          entries.map(async (entry) => {
             try {
-              return await loadRelease({ client, packageId, releaseId });
+              const [release, root] = await Promise.all([
+                loadRelease({ client, packageId, releaseId: entry.releaseId }),
+                loadRoot({ client, packageId, rootId: entry.rootId }),
+              ]);
+              return release.rootId === root.id ? { release, root } : undefined;
             } catch {
               return undefined;
             }
@@ -80,17 +89,17 @@ export function useRegisteredWorkflows(): {
         );
 
         if (cancelled) return;
-        const mapped: Workflow[] = releases
-          .filter((release): release is NonNullable<typeof release> => release !== undefined)
-          .map((release) => ({
+        const mapped: Workflow[] = loaded
+          .filter((value): value is NonNullable<typeof value> => value !== undefined)
+          .map(({ release, root }) => ({
             id: release.id,
-            name: release.title,
-            priceMist: Number(release.priceMist),
+            name: root.name,
+            priceMist: Number(release.priceLicense),
             users: 0,
             likes: 0,
-            creator: `${release.creator.slice(0, 6)}…${release.creator.slice(-4)}`,
+            creator: shortAddress(owner),
             lastUpdate: "방금 등록",
-            description: release.description,
+            description: root.description,
             category: "featured" as const,
             icon: "🆕",
             accent: "from-mint/70 to-lime/60",
@@ -135,10 +144,8 @@ export function useRegisterWorkflow() {
   const rehearse = async () => {
     setError(undefined);
     setRehearsing(true);
-    setStatus("creating_root");
-    await new Promise((resolve) => window.setTimeout(resolve, 1100));
     setStatus("publishing");
-    await new Promise((resolve) => window.setTimeout(resolve, 1300));
+    await new Promise((resolve) => window.setTimeout(resolve, 1400));
     setStatus("confirming");
     await new Promise((resolve) => window.setTimeout(resolve, 1200));
     setStatus("success");
@@ -158,45 +165,24 @@ export function useRegisterWorkflow() {
     setRehearsing(false);
 
     const packageId = webConfig.packageId;
+    const owner = account.address;
 
     try {
-      // create_workflow_root transfers the new root to the sender rather than
-      // returning it, so it cannot be chained into the publish call — the root
-      // has to exist as an owned object first. An existing root is reused so
-      // only the first registration costs two signatures.
-      let roots = await findOwnedRoots({ client, packageId, owner: account.address });
-      if (roots.length === 0) {
-        setStatus("creating_root");
-        const created = await dAppKit.signAndExecuteTransaction({
-          transaction: await buildCreateWorkflowRootTransaction({
-            packageId,
-            name: input.title,
-          }),
-          account,
-          network: "testnet",
-        });
-        if (created.$kind !== "Transaction") throw new Error("루트 생성 거래가 완료되지 않았습니다.");
-
-        roots = [];
-        for (let attempt = 0; attempt < 5 && roots.length === 0; attempt += 1) {
-          await new Promise((resolve) => window.setTimeout(resolve, 700));
-          roots = await findOwnedRoots({ client, packageId, owner: account.address });
-        }
-        if (roots.length === 0) throw new Error("생성된 루트를 아직 확인하지 못했습니다.");
-      }
-
-      const root = roots[roots.length - 1];
-      if (root === undefined) throw new Error("생성된 루트를 아직 확인하지 못했습니다.");
+      // An AgentProfile is the creator identity every root hangs off. Reusing
+      // the existing one keeps a wallet's listings under a single identity
+      // instead of minting a throwaway profile per registration.
+      const agentProfileId = await findOwnedAgentProfile({ client, packageId, owner });
 
       setStatus("publishing");
       const published = await dAppKit.signAndExecuteTransaction({
-        transaction: await buildPublishReleaseTransaction({
+        transaction: buildRegisterWorkflowTransaction({
           packageId,
-          rootId: root.id,
+          sender: owner,
+          agentProfileId,
+          creatorName: shortAddress(owner),
           title: input.title,
           description: input.description,
           priceMist: input.priceMist,
-          version: { major: 1, minor: 0, patch: 0 },
         }),
         account,
         network: "testnet",
@@ -204,13 +190,13 @@ export function useRegisterWorkflow() {
       if (published.$kind !== "Transaction") throw new Error("등록 거래가 완료되지 않았습니다.");
 
       setStatus("confirming");
-      let confirmed = false;
-      for (let attempt = 0; attempt < 5 && !confirmed; attempt += 1) {
-        await new Promise((resolve) => window.setTimeout(resolve, 800));
-        const after = await findOwnedRoots({ client, packageId, owner: account.address });
-        confirmed = after.some((candidate) => candidate.latestReleaseId !== undefined);
-      }
-      if (!confirmed) throw new Error("등록된 워크플로를 아직 확인하지 못했습니다.");
+      const created = await findCreatedObjects({
+        client,
+        digest: published.Transaction.digest,
+      });
+      const rootId = requireCreated(created, `${packageId}::agent::WorkflowRoot`);
+      const releaseId = requireCreated(created, `${packageId}::agent::WorkflowRelease`);
+      rememberRegisteredRelease(owner, { rootId, releaseId });
 
       setStatus("success");
     } catch (cause) {
@@ -222,7 +208,7 @@ export function useRegisterWorkflow() {
   return {
     status,
     stepLabel: STEP_LABEL[status],
-    busy: status === "creating_root" || status === "publishing" || status === "confirming",
+    busy: status === "publishing" || status === "confirming",
     error,
     rehearsing,
     register,

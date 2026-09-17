@@ -5,56 +5,77 @@ import { normalizeSuiAddress } from "@mysten/sui/utils";
 
 const CLOCK_OBJECT_ID = "0x6";
 
-// The contract only accepts this workflow type, whatever the listing is called.
-const WORKFLOW_TYPE = "google_news_rss/v1";
-
 // Registration through the browser publishes metadata only: the encrypted
-// bundle upload deliberately lives outside the web app, so these stand in for
-// the bundle references. They are shaped to pass the contract's length checks
-// and named so anyone reading the object on chain can see what they are.
+// bundle upload deliberately lives outside the web app, so this stands in for
+// the Walrus blob reference. It is named so anyone reading the object on chain
+// can see that there is nothing to download behind it.
 const PLACEHOLDER_BLOB_ID = "demo-metadata-only";
-const PLACEHOLDER_KEY_ID = "demo:metadata-only";
+
+const RELEASE_VERSION = "1.0.0";
+const ROYALTY_BPS = 500n;
 
 const idBcs = bcs.struct("RegID", { bytes: bcs.Address });
 const uidBcs = bcs.struct("RegUID", { id: idBcs });
 
+// Mirrors agent::AgentProfile and agent::WorkflowRoot at package 0x388adbc4…
+// BCS is positional, so these follow the declared field order exactly.
+const profileBcs = bcs.struct("RegAgentProfile", {
+  id: uidBcs,
+  owner: bcs.Address,
+  name: bcs.string(),
+  created_at: bcs.u64(),
+});
+
 const rootBcs = bcs.struct("RegWorkflowRoot", {
   id: uidBcs,
-  creator: bcs.Address,
+  agent_id: idBcs,
   name: bcs.string(),
-  slug_hash: bcs.vector(bcs.u8()),
-  latest_release_id: bcs.option(idBcs),
-  created_at_ms: bcs.u64(),
+  description: bcs.string(),
+  created_at: bcs.u64(),
 });
 
 export interface OwnedWorkflowRoot {
   id: string;
   name: string;
-  latestReleaseId: string | undefined;
+  description: string;
 }
 
 type ObjectClient = Pick<SuiGrpcClient, "listOwnedObjects">;
 
-function rootType(packageId: string): string {
-  return `${normalizeSuiAddress(packageId)}::marketplace::WorkflowRoot`;
+function typeOf(packageId: string, moduleName: string, structName: string): string {
+  return `${normalizeSuiAddress(packageId)}::${moduleName}::${structName}`;
 }
 
-async function sha256Bytes(input: string): Promise<Uint8Array> {
-  const encoded = new TextEncoder().encode(input);
-  return new Uint8Array(await crypto.subtle.digest("SHA-256", encoded.slice().buffer));
+/** The AgentProfile this address already owns, if any. */
+export async function findOwnedAgentProfile(input: {
+  client: ObjectClient;
+  packageId: string;
+  owner: string;
+}): Promise<string | undefined> {
+  const type = typeOf(input.packageId, "agent", "AgentProfile");
+  const response = await input.client.listOwnedObjects({
+    owner: normalizeSuiAddress(input.owner),
+    type,
+    limit: 50,
+    include: { content: true },
+  });
+  for (const object of response.objects) {
+    if (object.type !== type || !(object.content instanceof Uint8Array)) continue;
+    const parsed = profileBcs.parse(object.content);
+    if (parsed.id.id.bytes === normalizeSuiAddress(object.objectId)) {
+      return normalizeSuiAddress(object.objectId);
+    }
+  }
+  return undefined;
 }
 
-/**
- * Roots owned by this address, newest last. A release is only discoverable
- * through the root that published it — releases are shared objects and the
- * deployed contract emits no event to index them by.
- */
+/** Roots owned by this address, newest last. Titles and blurbs live here. */
 export async function findOwnedRoots(input: {
   client: ObjectClient;
   packageId: string;
   owner: string;
 }): Promise<OwnedWorkflowRoot[]> {
-  const type = rootType(input.packageId);
+  const type = typeOf(input.packageId, "agent", "WorkflowRoot");
   const response = await input.client.listOwnedObjects({
     owner: normalizeSuiAddress(input.owner),
     type,
@@ -66,66 +87,89 @@ export async function findOwnedRoots(input: {
   for (const object of response.objects) {
     if (object.type !== type || !(object.content instanceof Uint8Array)) continue;
     const parsed = rootBcs.parse(object.content);
+    if (parsed.id.id.bytes !== normalizeSuiAddress(object.objectId)) continue;
     roots.push({
       id: normalizeSuiAddress(object.objectId),
       name: parsed.name,
-      latestReleaseId:
-        parsed.latest_release_id === null
-          ? undefined
-          : normalizeSuiAddress(parsed.latest_release_id.bytes),
+      description: parsed.description,
     });
   }
   return roots;
 }
 
-export async function buildCreateWorkflowRootTransaction(input: {
+/**
+ * Registers a listing in a single signature.
+ *
+ * Every step returns its object instead of transferring it, so profile, root
+ * and release can be chained inside one programmable transaction. The release
+ * is shared because buyers need `&WorkflowRelease`, and the vault is created
+ * while the release is still a local value — after sharing it, the value is
+ * gone and `create_royalty_vault` could no longer take a reference to it.
+ */
+export function buildRegisterWorkflowTransaction(input: {
   packageId: string;
-  name: string;
-}): Promise<Transaction> {
-  const transaction = new Transaction();
-  const slugHash = await sha256Bytes(`${input.name}:${Date.now()}`);
-  transaction.moveCall({
-    target: `${normalizeSuiAddress(input.packageId)}::marketplace::create_workflow_root`,
-    arguments: [
-      transaction.pure.vector("u8", new TextEncoder().encode(input.name)),
-      transaction.pure.vector("u8", slugHash),
-      transaction.object(CLOCK_OBJECT_ID),
-    ],
-  });
-  return transaction;
-}
-
-export async function buildPublishReleaseTransaction(input: {
-  packageId: string;
-  rootId: string;
+  sender: string;
+  agentProfileId: string | undefined;
+  creatorName: string;
   title: string;
   description: string;
   priceMist: bigint;
-  version: { major: number; minor: number; patch: number };
-}): Promise<Transaction> {
-  const encoder = new TextEncoder();
-  const bundleHash = await sha256Bytes(`bundle:${input.title}:${input.rootId}`);
-  const manifestHash = await sha256Bytes(`manifest:${input.title}:${input.rootId}`);
-
+}): Transaction {
+  const packageId = normalizeSuiAddress(input.packageId);
   const transaction = new Transaction();
-  transaction.moveCall({
-    target: `${normalizeSuiAddress(input.packageId)}::marketplace::publish_release`,
+
+  const reusedProfile = input.agentProfileId !== undefined;
+  const profile = reusedProfile
+    ? transaction.object(normalizeSuiAddress(input.agentProfileId as string))
+    : transaction.moveCall({
+        target: `${packageId}::agent::create_agent_profile`,
+        arguments: [
+          transaction.pure.string(input.creatorName),
+          transaction.object(CLOCK_OBJECT_ID),
+        ],
+      });
+
+  const root = transaction.moveCall({
+    target: `${packageId}::agent::create_workflow_root`,
     arguments: [
-      transaction.object(normalizeSuiAddress(input.rootId)),
-      transaction.pure.u64(input.version.major),
-      transaction.pure.u64(input.version.minor),
-      transaction.pure.u64(input.version.patch),
-      transaction.pure.vector("u8", encoder.encode(input.title)),
-      transaction.pure.vector("u8", encoder.encode(input.description)),
-      transaction.pure.vector("u8", encoder.encode(WORKFLOW_TYPE)),
-      transaction.pure.vector("u8", encoder.encode(PLACEHOLDER_BLOB_ID)),
-      transaction.pure.vector("u8", bundleHash),
-      transaction.pure.vector("u8", manifestHash),
-      transaction.pure.vector("u8", encoder.encode(PLACEHOLDER_KEY_ID)),
-      transaction.pure.u64(input.priceMist),
-      transaction.pure.bool(true),
+      profile,
+      transaction.pure.string(input.title),
+      transaction.pure.string(input.description),
       transaction.object(CLOCK_OBJECT_ID),
     ],
   });
+
+  const release = transaction.moveCall({
+    target: `${packageId}::agent::create_workflow_release`,
+    arguments: [
+      root,
+      transaction.pure.option("address", null),
+      transaction.pure.string(RELEASE_VERSION),
+      transaction.pure.string(PLACEHOLDER_BLOB_ID),
+      transaction.pure.u64(input.priceMist),
+      transaction.pure.u64(input.priceMist),
+      transaction.pure.u64(ROYALTY_BPS),
+      transaction.pure.option("u64", null),
+      transaction.pure.option("u64", null),
+      transaction.object(CLOCK_OBJECT_ID),
+    ],
+  });
+
+  transaction.moveCall({
+    target: `${packageId}::marketplace::create_royalty_vault`,
+    arguments: [release],
+  });
+  transaction.moveCall({
+    target: "0x2::transfer::public_share_object",
+    typeArguments: [`${packageId}::agent::WorkflowRelease`],
+    arguments: [release],
+  });
+
+  const sender = normalizeSuiAddress(input.sender);
+  transaction.transferObjects(reusedProfile ? [root] : [profile, root], sender);
+  transaction.setSender(sender);
   return transaction;
 }
+
+export const REGISTERED_RELEASE_TYPE = (packageId: string): string =>
+  typeOf(packageId, "agent", "WorkflowRelease");

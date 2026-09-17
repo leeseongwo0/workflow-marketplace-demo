@@ -6,8 +6,11 @@ move/**/build/
 .env
 .env.*
 !.env.example
-data/local-keyring.json
-data/local-keyring.json.tmp-*
+# Leading-slash-free so these match at any depth. The executor writes its
+# keyring to apps/executor/data/, which the previous root-anchored patterns
+# did not cover — the file holds bundle decryption keys.
+**/data/local-keyring.json
+**/data/local-keyring.json.tmp-*
 *.log
 .DS_Store
 .gjc/

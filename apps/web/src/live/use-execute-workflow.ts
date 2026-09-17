@@ -3,12 +3,20 @@ import { useCurrentAccount, useCurrentClient, useCurrentNetwork, useDAppKit } fr
 
 import { webConfig } from "./config";
 import { useLiveReleaseStore } from "./live-release";
-import type { ExecutionResponse } from "./executor-client";
-import { ExecutorApiError, ExecutorClient, verifyExecutionContent } from "./executor-client";
+import type { ExecutionResponse, VerifiedReceipt } from "./executor-client";
+import {
+  ExecutorApiError,
+  ExecutorClient,
+  verifyExecutionContent,
+  verifyExecutionReceipt,
+} from "./executor-client";
 import type { OwnedLicense, OwnedReceipt } from "./sui-objects";
 import { findOwnedLicense, findRecordedReceipt } from "./sui-objects";
-import type { VerifiedReceipt } from "./transactions";
-import { buildRecordReceiptTransaction, verifyExecutionReceipt } from "./transactions";
+import {
+  buildCreateExecutionRequestTransaction,
+  buildRecordReceiptTransaction,
+} from "./transactions";
+import { findCreatedObject } from "./tx-effects";
 
 export type ExecuteStep =
   | "idle"
@@ -20,7 +28,13 @@ export type ExecuteStep =
   | "done"
   | "error";
 
-export type RecordStatus = "idle" | "signing" | "confirming" | "recorded" | "error";
+export type RecordStatus =
+  | "idle"
+  | "opening_request"
+  | "signing"
+  | "confirming"
+  | "recorded"
+  | "error";
 
 const STEP_LABEL: Partial<Record<ExecuteStep, string>> = {
   checking_license: "라이선스를 확인하는 중…",
@@ -28,6 +42,12 @@ const STEP_LABEL: Partial<Record<ExecuteStep, string>> = {
   awaiting_signature: "지갑에서 서명을 기다리는 중…",
   running: "워크플로를 실행하는 중…",
   verifying: "실행 결과와 영수증을 검증하는 중…",
+};
+
+export const RECORD_STATUS_LABEL: Partial<Record<RecordStatus, string>> = {
+  opening_request: "온체인 실행 요청을 여는 중… (지갑 서명 1/2)",
+  signing: "실행 기록을 남기는 중… (지갑 서명 2/2)",
+  confirming: "체인에서 기록이 확정되기를 기다리는 중…",
 };
 
 function decodeBase64(value: string): Uint8Array {
@@ -156,10 +176,11 @@ export function useExecuteWorkflow() {
 
       setStep("verifying");
       await verifyExecutionContent({ response, submittedQuery: query });
+      // workflowType is pinned by the response schema, so release identity and
+      // version are what is left to check here.
       if (
         response.workflow.releaseId !== release.id ||
-        response.workflow.version !== release.version ||
-        response.workflow.workflowType !== release.workflowType
+        response.workflow.version !== release.version
       ) {
         throw new Error("실행 결과가 이 워크플로의 것이 아닙니다.");
       }
@@ -168,16 +189,12 @@ export function useExecuteWorkflow() {
         expectedReleaseId: release.id,
         expectedLicenseId: owned.id,
         expectedRunner: account.address,
-        expectedExecutorPublicKey: marketplace.executorPublicKey,
       });
       const already = await findRecordedReceipt({
         client,
         packageId: webConfig.packageId,
-        marketplaceId: marketplace.id,
         owner: account.address,
         releaseId: release.id,
-        licenseId: owned.id,
-        nonceHash: response.receipt.payload.nonceHash,
       });
 
       setExecution(response);
@@ -191,6 +208,13 @@ export function useExecuteWorkflow() {
     }
   };
 
+  /**
+   * Writes the execution to chain.
+   *
+   * Two signatures rather than one: `record_execution` consumes an
+   * ExecutionRequest, and the call that opens one hands it out itself instead
+   * of returning it, so its id only exists once that transaction has landed.
+   */
   const record = async () => {
     if (
       account === null ||
@@ -204,14 +228,32 @@ export function useExecuteWorkflow() {
       return;
     }
     setError(undefined);
-    setRecordStatus("signing");
+    setRecordStatus("opening_request");
     try {
+      const opened = await dAppKit.signAndExecuteTransaction({
+        transaction: buildCreateExecutionRequestTransaction({
+          packageId: webConfig.packageId,
+          licenseId: license.id,
+          releaseId: release.id,
+        }),
+        account,
+        network: "testnet",
+      });
+      if (opened.$kind !== "Transaction") throw new Error("실행 요청 거래가 완료되지 않았습니다.");
+      const requestId = await findCreatedObject({
+        client,
+        digest: opened.Transaction.digest,
+        type: `${webConfig.packageId}::execution::ExecutionRequest`,
+      });
+
+      setRecordStatus("signing");
       const result = await dAppKit.signAndExecuteTransaction({
         transaction: buildRecordReceiptTransaction({
           packageId: webConfig.packageId,
-          marketplaceId: marketplace.id,
           licenseId: license.id,
-          receipt,
+          releaseId: release.id,
+          requestId,
+          recipient: account.address,
         }),
         account,
         network: "testnet",
@@ -222,11 +264,8 @@ export function useExecuteWorkflow() {
       const found = await findRecordedReceipt({
         client,
         packageId: webConfig.packageId,
-        marketplaceId: marketplace.id,
         owner: account.address,
         releaseId: release.id,
-        licenseId: license.id,
-        nonceHash: receipt.payload.nonceHash,
       });
       if (found === undefined) throw new Error("기록된 영수증을 아직 확인하지 못했습니다.");
       setRecorded(found);
@@ -247,6 +286,7 @@ export function useExecuteWorkflow() {
     receipt,
     recorded,
     recordStatus,
+    recordStatusLabel: RECORD_STATUS_LABEL[recordStatus],
     run,
     record,
   };

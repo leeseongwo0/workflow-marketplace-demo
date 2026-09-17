@@ -134,9 +134,10 @@ export function usePurchaseLicense() {
       const result = await dAppKit.signAndExecuteTransaction({
         transaction: buildPurchaseLicenseTransaction({
           packageId: webConfig.packageId,
-          marketplaceId: webConfig.marketplaceId,
+          marketplaceConfigId: webConfig.marketplaceId,
           releaseId: release.id,
-          priceMist: release.priceMist,
+          vaultId: webConfig.vaultId,
+          priceMist: release.priceLicense,
         }),
         account,
         network: "testnet",
