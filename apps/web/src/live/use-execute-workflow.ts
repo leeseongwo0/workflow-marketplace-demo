@@ -45,10 +45,16 @@ const STEP_LABEL: Partial<Record<ExecuteStep, string>> = {
 };
 
 export const RECORD_STATUS_LABEL: Partial<Record<RecordStatus, string>> = {
-  opening_request: "온체인 실행 요청을 여는 중… (지갑 서명 1/2)",
-  signing: "실행 기록을 남기는 중… (지갑 서명 2/2)",
+  opening_request: "온체인 실행 요청을 여는 중… (지갑 서명)",
+  signing: "실행 기록을 남기는 중… (지갑 서명)",
   confirming: "체인에서 기록이 확정되기를 기다리는 중…",
 };
+
+/*
+ * The contract gives an ExecutionRequest ten minutes; stopping a minute short
+ * keeps a reused one from expiring midway through the second signature.
+ */
+const REQUEST_REUSE_WINDOW_MS = 9 * 60 * 1000;
 
 function decodeBase64(value: string): Uint8Array {
   const binary = atob(value);
@@ -91,6 +97,13 @@ export function useExecuteWorkflow() {
   const [license, setLicense] = useState<OwnedLicense | undefined>(undefined);
   const [recorded, setRecorded] = useState<OwnedReceipt | undefined>(undefined);
   const [recordStatus, setRecordStatus] = useState<RecordStatus>("idle");
+  // Kept across attempts on purpose. Recording needs two wallet signatures and
+  // the zkLogin prover fails on the second when both are asked for back to
+  // back, so a retry should reuse the request the first attempt already paid
+  // for rather than open another one.
+  const [openRequest, setOpenRequest] = useState<
+    { id: string; expiresAtMs: number } | undefined
+  >(undefined);
 
   const ready =
     account !== null &&
@@ -118,6 +131,7 @@ export function useExecuteWorkflow() {
     setReceipt(undefined);
     setRecorded(undefined);
     setRecordStatus("idle");
+    setOpenRequest(undefined);
 
     try {
       setStep("checking_license");
@@ -230,20 +244,31 @@ export function useExecuteWorkflow() {
     setError(undefined);
     setRecordStatus("opening_request");
     try {
-      const openSigned = await dAppKit.signTransaction({
-        transaction: buildCreateExecutionRequestTransaction({
-          packageId: webConfig.packageId,
-          licenseId: license.id,
-          releaseId: release.id,
-        }),
-        account,
-        network: "testnet",
-      });
-      const opened = await executeSignedTransaction({ client, signed: openSigned });
-      const requestId = requireCreated(
-        opened,
-        `${webConfig.packageId}::execution::ExecutionRequest`,
-      );
+      const reusable =
+        openRequest !== undefined && openRequest.expiresAtMs > Date.now()
+          ? openRequest.id
+          : undefined;
+
+      let requestId: string;
+      if (reusable === undefined) {
+        const openSigned = await dAppKit.signTransaction({
+          transaction: buildCreateExecutionRequestTransaction({
+            packageId: webConfig.packageId,
+            licenseId: license.id,
+            releaseId: release.id,
+          }),
+          account,
+          network: "testnet",
+        });
+        const opened = await executeSignedTransaction({ client, signed: openSigned });
+        requestId = requireCreated(
+          opened,
+          `${webConfig.packageId}::execution::ExecutionRequest`,
+        );
+        setOpenRequest({ id: requestId, expiresAtMs: Date.now() + REQUEST_REUSE_WINDOW_MS });
+      } else {
+        requestId = reusable;
+      }
 
       setRecordStatus("signing");
       const recordSigned = await dAppKit.signTransaction({
@@ -267,6 +292,7 @@ export function useExecuteWorkflow() {
         releaseId: release.id,
       });
       if (found === undefined) throw new Error("기록된 영수증을 아직 확인하지 못했습니다.");
+      setOpenRequest(undefined);
       setRecorded(found);
       setRecordStatus("recorded");
     } catch (cause) {
