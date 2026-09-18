@@ -13,7 +13,7 @@ import {
   rememberRegisteredRelease,
 } from "./registered-releases";
 import { loadRelease, loadRoot } from "./sui-objects";
-import { findCreatedObjects, requireCreated } from "./tx-effects";
+import { executeSignedTransaction, requireCreated } from "./execute-signed";
 
 export type RegisterStatus =
   | "idle"
@@ -174,7 +174,7 @@ export function useRegisterWorkflow() {
       const agentProfileId = await findOwnedAgentProfile({ client, packageId, owner });
 
       setStatus("publishing");
-      const published = await dAppKit.signAndExecuteTransaction({
+      const signed = await dAppKit.signTransaction({
         transaction: buildRegisterWorkflowTransaction({
           packageId,
           sender: owner,
@@ -187,19 +187,16 @@ export function useRegisterWorkflow() {
         account,
         network: "testnet",
       });
-      if (published.$kind !== "Transaction") throw new Error("등록 거래가 완료되지 않았습니다.");
 
       setStatus("confirming");
-      const created = await findCreatedObjects({
-        client,
-        digest: published.Transaction.digest,
-      });
-      const rootId = requireCreated(created, `${packageId}::agent::WorkflowRoot`);
-      const releaseId = requireCreated(created, `${packageId}::agent::WorkflowRelease`);
+      const executed = await executeSignedTransaction({ client, signed });
+      const rootId = requireCreated(executed, `${packageId}::agent::WorkflowRoot`);
+      const releaseId = requireCreated(executed, `${packageId}::agent::WorkflowRelease`);
       rememberRegisteredRelease(owner, { rootId, releaseId });
 
       setStatus("success");
     } catch (cause) {
+      console.error("[register] failed:", cause);
       setError(messageFor(cause));
       setStatus("error");
     }

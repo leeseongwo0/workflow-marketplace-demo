@@ -16,7 +16,7 @@ import {
   buildCreateExecutionRequestTransaction,
   buildRecordReceiptTransaction,
 } from "./transactions";
-import { findCreatedObject } from "./tx-effects";
+import { executeSignedTransaction, requireCreated } from "./execute-signed";
 
 export type ExecuteStep =
   | "idle"
@@ -230,7 +230,7 @@ export function useExecuteWorkflow() {
     setError(undefined);
     setRecordStatus("opening_request");
     try {
-      const opened = await dAppKit.signAndExecuteTransaction({
+      const openSigned = await dAppKit.signTransaction({
         transaction: buildCreateExecutionRequestTransaction({
           packageId: webConfig.packageId,
           licenseId: license.id,
@@ -239,15 +239,14 @@ export function useExecuteWorkflow() {
         account,
         network: "testnet",
       });
-      if (opened.$kind !== "Transaction") throw new Error("실행 요청 거래가 완료되지 않았습니다.");
-      const requestId = await findCreatedObject({
-        client,
-        digest: opened.Transaction.digest,
-        type: `${webConfig.packageId}::execution::ExecutionRequest`,
-      });
+      const opened = await executeSignedTransaction({ client, signed: openSigned });
+      const requestId = requireCreated(
+        opened,
+        `${webConfig.packageId}::execution::ExecutionRequest`,
+      );
 
       setRecordStatus("signing");
-      const result = await dAppKit.signAndExecuteTransaction({
+      const recordSigned = await dAppKit.signTransaction({
         transaction: buildRecordReceiptTransaction({
           packageId: webConfig.packageId,
           licenseId: license.id,
@@ -258,7 +257,7 @@ export function useExecuteWorkflow() {
         account,
         network: "testnet",
       });
-      if (result.$kind !== "Transaction") throw new Error("영수증 기록 거래가 완료되지 않았습니다.");
+      await executeSignedTransaction({ client, signed: recordSigned });
 
       setRecordStatus("confirming");
       const found = await findRecordedReceipt({
@@ -271,6 +270,10 @@ export function useExecuteWorkflow() {
       setRecorded(found);
       setRecordStatus("recorded");
     } catch (cause) {
+      // The UI only ever shows a flattened message. Recording spans two wallet
+      // round trips, so when it breaks the stack is the only thing that says
+      // which of them broke — print the original rather than lose it.
+      console.error("[record] failed:", cause);
       setError(messageFor(cause));
       setRecordStatus("error");
     }

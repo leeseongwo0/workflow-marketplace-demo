@@ -3,6 +3,7 @@ import { useCurrentAccount, useCurrentClient, useCurrentNetwork, useDAppKit } fr
 
 import { useWorkflowStore } from "../stores/workflow-store";
 import { webConfig } from "./config";
+import { executeSignedTransaction } from "./execute-signed";
 import { LIVE_WORKFLOW_ID, useLiveReleaseStore } from "./live-release";
 import { findOwnedLicense } from "./sui-objects";
 import { buildPurchaseLicenseTransaction } from "./transactions";
@@ -143,7 +144,7 @@ export function usePurchaseLicense(options?: { allowRepurchase?: boolean }) {
       }
 
       setStatus("signing");
-      const result = await dAppKit.signAndExecuteTransaction({
+      const signed = await dAppKit.signTransaction({
         transaction: buildPurchaseLicenseTransaction({
           packageId: webConfig.packageId,
           marketplaceConfigId: webConfig.marketplaceId,
@@ -154,13 +155,10 @@ export function usePurchaseLicense(options?: { allowRepurchase?: boolean }) {
         account,
         network: "testnet",
       });
-      if (result.$kind !== "Transaction") {
-        fail("unknown");
-        return;
-      }
 
       setStatus("confirming");
-      setDigest(result.Transaction.digest);
+      const executed = await executeSignedTransaction({ client, signed });
+      setDigest(executed.digest);
       const license = await findLicenseWithRetry({
         client,
         packageId: webConfig.packageId,
@@ -177,6 +175,9 @@ export function usePurchaseLicense(options?: { allowRepurchase?: boolean }) {
       purchaseWorkflow(LIVE_WORKFLOW_ID);
       setStatus("success");
     } catch (cause) {
+      // Flattened into a short Korean sentence for the user, so keep the
+      // original where a developer can still see it.
+      console.error("[purchase] failed:", cause);
       fail(classify(cause));
     }
   };
