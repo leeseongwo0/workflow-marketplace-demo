@@ -131,7 +131,10 @@ export function useExecuteWorkflow() {
     setReceipt(undefined);
     setRecorded(undefined);
     setRecordStatus("idle");
-    setOpenRequest(undefined);
+    // The open request is deliberately kept across runs. It is bound to the
+    // licence and release, not to one execution, so a request already paid for
+    // stays usable and the next record attempt costs one signature instead of
+    // two.
 
     try {
       setStep("checking_license");
