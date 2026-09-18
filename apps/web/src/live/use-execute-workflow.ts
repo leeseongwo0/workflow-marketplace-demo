@@ -62,6 +62,24 @@ function decodeBase64(value: string): Uint8Array {
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 }
 
+/**
+ * A freshly created object is not immediately listable, so a single lookup
+ * right after the transaction lands reports "not recorded" for a record that
+ * in fact succeeded. The purchase path already retries for the same reason.
+ */
+async function findReceiptWithRetry(
+  input: Parameters<typeof findRecordedReceipt>[0],
+) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const found = await findRecordedReceipt(input);
+    if (found !== undefined) return found;
+    if (attempt < 5) {
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 1_000));
+    }
+  }
+  return undefined;
+}
+
 function messageFor(cause: unknown): string {
   if (cause instanceof ExecutorApiError) {
     if (cause.code === "EXECUTOR_UNREACHABLE") {
@@ -288,7 +306,7 @@ export function useExecuteWorkflow() {
       await executeSignedTransaction({ client, signed: recordSigned });
 
       setRecordStatus("confirming");
-      const found = await findRecordedReceipt({
+      const found = await findReceiptWithRetry({
         client,
         packageId: webConfig.packageId,
         owner: account.address,
