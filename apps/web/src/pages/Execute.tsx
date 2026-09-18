@@ -173,6 +173,15 @@ export default function Execute() {
                   executor가 제시한 키를 그대로 사용했습니다.
                 </p>
 
+                {/* Record failures used to surface only in the status area at the
+                    top of the page, far above this button, so a failed record
+                    looked like nothing had happened at all. */}
+                {execute.recordStatus === "error" && execute.error !== undefined && (
+                  <p className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                    {execute.error}
+                  </p>
+                )}
+
                 {execute.recorded !== undefined ? (
                   <p className="mt-4 flex items-center gap-2 text-sm text-mint">
                     <Check className="h-4 w-4" aria-hidden="true" />
