@@ -304,6 +304,11 @@ export function useExecuteWorkflow() {
         network: "testnet",
       });
       await executeSignedTransaction({ client, signed: recordSigned });
+      // The request is spent the moment this lands. Dropping it here rather
+      // than after the lookup below matters: if the lookup fails, a retry that
+      // still held this id would abort with "request already claimed" and the
+      // real reason — a record that already succeeded — would stay hidden.
+      setOpenRequest(undefined);
 
       setRecordStatus("confirming");
       const found = await findReceiptWithRetry({
@@ -313,7 +318,6 @@ export function useExecuteWorkflow() {
         releaseId: release.id,
       });
       if (found === undefined) throw new Error("기록된 영수증을 아직 확인하지 못했습니다.");
-      setOpenRequest(undefined);
       setRecorded(found);
       setRecordStatus("recorded");
     } catch (cause) {
