@@ -66,11 +66,19 @@ export function buildCreateExecutionRequestTransaction(input: {
   return transaction;
 }
 
+const EXECUTION_RECEIPT_TYPE = (packageId: string): string =>
+  `${normalizeSuiAddress(packageId)}::execution::ExecutionReceipt`;
+
 /**
  * Records an execution on chain against an open request.
  *
  * The receipt is returned by the Move call rather than transferred internally,
  * so the caller has to take ownership of it or the transaction fails to build.
+ * Ownership is taken with `public_transfer` rather than a TransferObjects
+ * command: the wallet used for the demo fails to sign this transaction when it
+ * carries TransferObjects over a call result, reporting an internal
+ * "Failed to create zkLogin ZKP" that has nothing to do with the contents.
+ * Two move calls are something it handles, and the on-chain effect is the same.
  */
 export function buildRecordReceiptTransaction(input: {
   packageId: string;
@@ -79,9 +87,10 @@ export function buildRecordReceiptTransaction(input: {
   requestId: string;
   recipient: string;
 }): Transaction {
+  const packageId = normalizeSuiAddress(input.packageId);
   const transaction = new Transaction();
   const receipt = transaction.moveCall({
-    target: `${normalizeSuiAddress(input.packageId)}::execution::record_execution`,
+    target: `${packageId}::execution::record_execution`,
     arguments: [
       transaction.object(normalizeSuiAddress(input.licenseId)),
       transaction.object(normalizeSuiAddress(input.releaseId)),
@@ -89,6 +98,10 @@ export function buildRecordReceiptTransaction(input: {
       transaction.object(CLOCK_OBJECT_ID),
     ],
   });
-  transaction.transferObjects([receipt], normalizeSuiAddress(input.recipient));
+  transaction.moveCall({
+    target: "0x2::transfer::public_transfer",
+    typeArguments: [EXECUTION_RECEIPT_TYPE(packageId)],
+    arguments: [receipt, transaction.pure.address(normalizeSuiAddress(input.recipient))],
+  });
   return transaction;
 }

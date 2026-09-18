@@ -173,10 +173,16 @@ describe("web transaction builders", () => {
     expect(objectArg(data, call.arguments[3])).toBe(CLOCK_ID);
 
     // The receipt is returned rather than transferred by the module, so the
-    // transaction has to take ownership of it or it cannot be built.
-    const transfer = data.commands[1]?.TransferObjects;
-    expect(transfer?.objects).toEqual([{ $kind: "Result", Result: 0 }]);
-    expect(pureArg(data, transfer?.address)).toEqual(
+    // transaction has to take ownership of it. public_transfer is used instead
+    // of a TransferObjects command because the demo wallet refuses to sign that
+    // shape — see the builder for the detail.
+    const transfer = moveCall(data, 1);
+    expect(transfer.package).toBe(`0x${"0".repeat(63)}2`);
+    expect(transfer.module).toBe("transfer");
+    expect(transfer.function).toBe("public_transfer");
+    expect(transfer.typeArguments).toEqual([`${PACKAGE_ID}::execution::ExecutionReceipt`]);
+    expect(transfer.arguments[0]).toMatchObject({ $kind: "Result", Result: 0 });
+    expect(pureArg(data, transfer.arguments[1])).toEqual(
       bcs.Address.serialize(RECIPIENT).toBytes(),
     );
   });
