@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useCurrentAccount, useCurrentNetwork } from "@mysten/dapp-kit-react";
+import { isRehearsalEnabled } from "../../lib/rehearsal";
 import { useLoadLiveRelease } from "../../live/live-release";
 import { AccountMenu } from "../AccountMenu";
 import { WalletModal } from "../WalletModal";
@@ -13,6 +14,11 @@ export function Layout() {
 
   useLoadLiveRelease();
 
+  // Read here rather than in each page so the flag registers on whichever page
+  // the link lands on, and so the banner is impossible to miss. Getting this
+  // wrong costs a real purchase.
+  const rehearsing = isRehearsalEnabled(location.search);
+
   const handleGetStarted = () => setShowWalletModal(true);
 
   return (
@@ -20,6 +26,21 @@ export function Layout() {
     // near-black page colour, so anything that did not set its own text colour
     // rendered invisible against a dark surface.
     <div className="min-h-screen bg-panel text-white">
+      {rehearsing && (
+        // Deliberately not reassuring: rehearsal only adds a fake purchase
+        // button. Everything else on the page still spends real testnet SUI.
+        <div className="sticky top-0 z-30 bg-amber-400 text-black">
+          <div className="container mx-auto flex flex-wrap items-center justify-between gap-2 px-5 py-2 text-xs font-semibold">
+            <span>
+              리허설 모드 — 구매 창의 &lsquo;리허설로 실행&rsquo; 버튼만 가짜입니다.
+              구매하기·실행하기는 그대로 체인에 반영됩니다.
+            </span>
+            <a href="?rehearsal=0" className="underline underline-offset-2">
+              끄기
+            </a>
+          </div>
+        </div>
+      )}
       <header className="border-b border-line sticky top-0 z-20 bg-panel">
         <div className="container mx-auto px-5 py-4">
           <div className="flex justify-between items-center">
