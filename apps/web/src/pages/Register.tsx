@@ -4,9 +4,34 @@ import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Check } from "lucide-react";
 
 import { isRehearsalEnabled } from "../lib/rehearsal";
+import { explorerObjectUrl, webConfig } from "../live/config";
 import { useRegisterWorkflow } from "../live/use-register-workflow";
 
 const MIST_PER_SUI = 1_000_000_000;
+
+/**
+ * One object the registration created. The id is shown in full rather than
+ * shortened: the point is that someone can copy it and look it up themselves.
+ * The explorer link only appears when a base URL is configured, so a missing
+ * setting degrades to plain text instead of a dead link.
+ */
+function RegisteredId({ label, objectId }: { label: string; objectId: string }) {
+  const url = explorerObjectUrl(webConfig, objectId);
+  return (
+    <div className="flex flex-col gap-1">
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className="font-mono text-xs break-all">
+        {url === undefined ? (
+          objectId
+        ) : (
+          <a href={url} target="_blank" rel="noreferrer" className="text-mint hover:underline">
+            {objectId} ↗
+          </a>
+        )}
+      </dd>
+    </div>
+  );
+}
 
 export default function Register() {
   const account = useCurrentAccount();
@@ -57,6 +82,16 @@ export default function Register() {
               ? "리허설이 끝났습니다. 실제 워크플로는 등록되지 않았습니다."
               : "워크플로를 등록했습니다. 마켓플레이스와 프로필에서 확인할 수 있습니다."}
           </p>
+
+          {/* The ids the chain just handed back. "등록했습니다" is a claim; these
+              are the thing itself, and anyone can check them in an explorer. */}
+          {register.registered !== undefined && (
+            <dl className="mt-6 flex flex-col gap-3 rounded-xl border border-line bg-ink p-4">
+              <RegisteredId label="릴리스 ID" objectId={register.registered.releaseId} />
+              <RegisteredId label="루트 ID" objectId={register.registered.rootId} />
+            </dl>
+          )}
+
           <div className="mt-6 flex gap-3">
             <button
               type="button"
@@ -71,10 +106,16 @@ export default function Register() {
             </button>
             <button
               type="button"
-              onClick={() => navigate("/marketplace")}
+              onClick={() =>
+                navigate(
+                  register.registered === undefined
+                    ? "/marketplace"
+                    : `/marketplace/${register.registered.releaseId}`,
+                )
+              }
               className="flex-1 rounded-xl bg-blue px-4 py-3 text-sm font-semibold text-white hover:opacity-90"
             >
-              마켓플레이스로
+              {register.registered === undefined ? "마켓플레이스로" : "등록 결과 보기"}
             </button>
           </div>
         </div>

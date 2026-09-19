@@ -70,8 +70,6 @@ export function OnChainWorkflowDetail({ workflow }: { workflow: OnChainWorkflow 
           <ObjectRow label="루트 ID" objectId={release.rootId} />
           <Row label="버전">{release.version}</Row>
           <Row label="라이선스 가격">{formatSui(Number(release.priceLicense))}</Row>
-          <Row label="포크 가격">{formatSui(Number(release.priceFork))}</Row>
-          <Row label="로열티">{Number(release.royaltyBps) / 100}%</Row>
           <Row label="마켓 노출">{release.isListed ? "노출 중" : "비노출"}</Row>
           <Row label="실행 번들">
             {bundleUploaded ? (

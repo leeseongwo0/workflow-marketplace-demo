@@ -134,11 +134,17 @@ export function useRegisterWorkflow() {
   const [status, setStatus] = useState<RegisterStatus>("idle");
   const [error, setError] = useState<string | undefined>(undefined);
   const [rehearsing, setRehearsing] = useState(false);
+  // Surfaced so the success screen can show what the chain actually created.
+  // Without it the only proof of a registration is the word "등록했습니다".
+  const [registered, setRegistered] = useState<
+    { rootId: string; releaseId: string } | undefined
+  >(undefined);
 
   const reset = () => {
     setStatus("idle");
     setError(undefined);
     setRehearsing(false);
+    setRegistered(undefined);
   };
 
   const rehearse = async () => {
@@ -163,6 +169,7 @@ export function useRegisterWorkflow() {
     }
     setError(undefined);
     setRehearsing(false);
+    setRegistered(undefined);
 
     const packageId = webConfig.packageId;
     const owner = account.address;
@@ -193,6 +200,7 @@ export function useRegisterWorkflow() {
       const rootId = requireCreated(executed, `${packageId}::agent::WorkflowRoot`);
       const releaseId = requireCreated(executed, `${packageId}::agent::WorkflowRelease`);
       rememberRegisteredRelease(owner, { rootId, releaseId });
+      setRegistered({ rootId, releaseId });
 
       setStatus("success");
     } catch (cause) {
@@ -208,6 +216,7 @@ export function useRegisterWorkflow() {
     busy: status === "publishing" || status === "confirming",
     error,
     rehearsing,
+    registered,
     register,
     rehearse,
     reset,
