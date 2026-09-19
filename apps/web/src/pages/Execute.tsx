@@ -173,8 +173,22 @@ export default function Execute() {
             {execute.execution !== undefined && (
               <Panel>
                 <h2 className="text-lg font-semibold mb-1">실행 결과</h2>
+                {/* News always looks current, so a result pulled back from
+                    storage has to say when it was actually fetched. The time
+                    comes from the receipt the executor signed, not from when
+                    this screen happened to render it. */}
                 <p className="text-xs text-muted mb-4">
-                  &lsquo;{execute.execution.input.query}&rsquo; · {execute.execution.result.items.length}건
+                  &lsquo;{execute.execution.input.query}&rsquo; ·{" "}
+                  {execute.execution.result.items.length}건 ·{" "}
+                  {new Date(
+                    execute.execution.receipt.payload.executedAtMs,
+                  ).toLocaleString("ko-KR", {
+                    month: "numeric",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}{" "}
+                  실행
                 </p>
                 <ul className="flex flex-col gap-3">
                   {execute.execution.result.items.map((item) => (
