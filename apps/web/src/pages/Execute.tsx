@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import { Check, ExternalLink, History, Play, RefreshCw, ShieldCheck } from "lucide-react";
+import { Check, ExternalLink, History, Play, RefreshCw, ShieldCheck, X } from "lucide-react";
 
 import { BriefResult } from "../components/BriefResult";
 import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
@@ -182,6 +182,15 @@ export default function Execute() {
                         >
                           <RefreshCw className="h-3 w-3" aria-hidden="true" />
                           최신으로
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => execute.forget(entry.response.executionId)}
+                          aria-label={`${entry.response.input.query} 기록 삭제`}
+                          title="이 기록만 지웁니다. 체인에 남은 실행 기록과는 무관합니다."
+                          className="flex flex-shrink-0 items-center justify-center rounded-lg border border-line p-1.5 text-muted hover:border-red-500/50 hover:text-red-400"
+                        >
+                          <X className="h-3.5 w-3.5" aria-hidden="true" />
                         </button>
                       </li>
                     ))}

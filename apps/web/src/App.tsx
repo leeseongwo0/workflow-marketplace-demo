@@ -1,8 +1,9 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { Layout } from "./components/Layout/Layout";
 import { ToastProvider } from "./components/Toast/ToastProvider";
 
+const Home = lazy(() => import("./pages/Home"));
 const Marketplace = lazy(() => import("./pages/Marketplace"));
 const WorkflowDetail = lazy(() => import("./pages/WorkflowDetail"));
 const Search = lazy(() => import("./pages/Search"));
@@ -17,7 +18,7 @@ export function App() {
       <Suspense fallback={null}>
         <Routes>
           <Route element={<Layout />}>
-            <Route path="/" element={<Navigate to="/marketplace" replace />} />
+            <Route path="/" element={<Home />} />
             <Route path="/marketplace" element={<Marketplace />} />
             <Route path="/marketplace/:workflowId" element={<WorkflowDetail />} />
             <Route path="/search" element={<Search />} />

@@ -11,7 +11,11 @@ import {
   verifyExecutionReceipt,
 } from "./executor-client";
 import type { ExecutionHistoryEntry } from "./execution-history";
-import { listExecutionHistory, rememberExecution } from "./execution-history";
+import {
+  forgetExecution,
+  listExecutionHistory,
+  rememberExecution,
+} from "./execution-history";
 import type { OwnedLicense } from "./sui-objects";
 import { findOwnedLicense } from "./sui-objects";
 import {
@@ -358,11 +362,18 @@ export function useExecuteWorkflow() {
     }
   };
 
+  const forget = (executionId: string) => {
+    if (account === null) return;
+    forgetExecution(account.address, executionId);
+    setHistory(listExecutionHistory(account.address));
+  };
+
   return {
     ready,
     step,
     history,
     replay,
+    forget,
     stepLabel: STEP_LABEL[step],
     busy: step !== "idle" && step !== "done" && step !== "error",
     error,

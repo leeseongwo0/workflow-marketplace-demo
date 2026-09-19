@@ -52,6 +52,9 @@ export function Layout() {
             </Link>
 
             <nav className="flex items-center gap-6">
+              <Link to="/marketplace" className="text-white text-sm font-medium hover:text-mint">
+                Market
+              </Link>
               <Link to="/profile" className="text-white text-sm font-medium hover:text-mint">
                 Profile
               </Link>

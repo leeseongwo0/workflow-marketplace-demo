@@ -72,3 +72,15 @@ export function rememberExecution(owner: string, response: ExecutionResponse): v
   const next = [{ executedAtMs: Date.now(), response }, ...existing].slice(0, MAX_PER_OWNER);
   write({ ...stored, [key]: next });
 }
+
+/** Drops one stored run. Used by the list's delete control. */
+export function forgetExecution(owner: string, executionId: string): void {
+  const key = normalizeSuiAddress(owner);
+  const stored = read();
+  write({
+    ...stored,
+    [key]: listExecutionHistory(key).filter(
+      (entry) => entry.response.executionId !== executionId,
+    ),
+  });
+}
