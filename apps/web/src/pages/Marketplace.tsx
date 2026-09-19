@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, Search as SearchIcon, Users } from "lucide-react";
-import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
 import { formatSui } from "../lib/sui-amount";
 import { useRegisteredWorkflows } from "../live/use-register-workflow";
 import { useWorkflowStore } from "../stores/workflow-store";
@@ -32,18 +31,20 @@ export default function Marketplace() {
 
   return (
     <div className="min-h-screen bg-ink text-white">
-      <div className="text-center mb-10">
-        <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue/20 text-2xl mb-4">
-          🧩
-        </span>
-        <h1 className="text-4xl font-bold tracking-tight">Workflow Marketplace</h1>
-        <p className="text-muted mt-2">Discover and license AI workflows secured by TEE.</p>
+      {/* Left aligned, no badge, no tagline. The centred hero with an emoji
+          above it is what made this read as a generated mockup rather than a
+          tool someone would open every day. */}
+      <div className="max-w-2xl mx-auto mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">워크플로 마켓</h1>
+        <p className="text-muted text-sm mt-1">
+          Sui 위에서 워크플로 라이선스를 사고팔고, 산 워크플로를 실행합니다.
+        </p>
       </div>
 
       <button
         type="button"
         onClick={() => navigate("/search")}
-        className="fm-card fm-card-interactive w-full max-w-2xl mx-auto flex items-center gap-3 !rounded-full px-5 py-3.5 text-muted hover:text-white mb-12"
+        className="fm-card fm-card-interactive w-full max-w-2xl mx-auto flex items-center gap-3 !rounded-xl px-4 py-2.5 text-sm text-muted hover:text-white mb-6"
       >
         <SearchIcon className="h-4 w-4" aria-hidden="true" />
         <span>Search workflows...</span>
@@ -63,17 +64,21 @@ export default function Marketplace() {
                   navigate(`/marketplace/${workflow.id}`, { state: { from: "marketplace" } });
                 }
               }}
-              className="fm-card fm-card-interactive flex items-center gap-4 p-4 text-left cursor-pointer"
+              className="fm-card fm-card-interactive flex items-start gap-4 px-4 py-3.5 text-left cursor-pointer"
             >
-              <WorkflowThumbnail workflow={workflow} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-semibold text-lg truncate">{workflow.name}</span>
-                  <span className="font-semibold text-lg whitespace-nowrap">
+                  <span className="font-semibold truncate">{workflow.name}</span>
+                  <span className="font-semibold whitespace-nowrap">
                     {formatSui(workflow.priceMist)}
                   </span>
                 </div>
-                <div className="flex items-center justify-end gap-4 text-xs text-muted mt-2">
+                {workflow.steps !== undefined && (
+                  <p className="mt-1 truncate text-xs text-muted">
+                    {workflow.steps.join(" → ")}
+                  </p>
+                )}
+                <div className="flex items-center justify-end gap-4 text-xs text-muted mt-2.5">
                   <span className="flex items-center gap-1.5">
                     <Users className="h-3.5 w-3.5" aria-hidden="true" />
                     {workflow.users}

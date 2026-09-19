@@ -6,22 +6,28 @@ interface WorkflowThumbnailProps {
   textClassName?: string;
 }
 
+/**
+ * A quiet marker next to a listing.
+ *
+ * It used to be a saturated gradient behind a large emoji, which is the look
+ * that made reviewers read the catalog as a generated mockup. The tile is now
+ * a plain surface and the glyph is held back, so it identifies a row without
+ * competing with the name beside it.
+ */
 export function WorkflowThumbnail({
   workflow,
-  className = "h-20 w-20 rounded-xl",
-  textClassName = "text-3xl",
+  className = "h-12 w-12 rounded-lg",
+  textClassName = "text-lg",
 }: WorkflowThumbnailProps) {
-  if (workflow.icon === undefined) {
-    return <div className={`flex-shrink-0 bg-white ${className}`} />;
-  }
-
   return (
     <div
-      className={`flex flex-shrink-0 items-center justify-center bg-gradient-to-br ${workflow.accent ?? "from-blue/80 to-mint/60"} ${className}`}
+      className={`flex flex-shrink-0 items-center justify-center border border-line bg-ink ${className}`}
     >
-      <span className={textClassName} aria-hidden="true">
-        {workflow.icon}
-      </span>
+      {workflow.icon !== undefined && (
+        <span className={`${textClassName} opacity-70 grayscale`} aria-hidden="true">
+          {workflow.icon}
+        </span>
+      )}
     </div>
   );
 }

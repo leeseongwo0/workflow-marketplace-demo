@@ -19,6 +19,11 @@ export type Workflow = {
   workflowType?: string;
   /** Registered through the browser: real on-chain listing, but no bundle to run. */
   onChainOnly?: boolean;
+  /**
+   * What the workflow does, as three or four stages. Drawn on the detail page
+   * so a listing reads as a pipeline rather than a name and a price.
+   */
+  steps?: string[];
 };
 
 export type PurchasedWorkflow = {
@@ -66,6 +71,7 @@ const GOOGLE_NEWS_WORKFLOW: Workflow = {
   id: "google-news-rss",
   // Curated title. The WorkflowRoot on chain calls it "Google News RSS".
   name: "Google News RSS Monitor",
+  steps: ["검색어 입력", "Google News 수집", "중복 제거 · 최신순", "기사 10건"],
   // Fallback only: price_license on the deployed WorkflowRelease (0.05 SUI).
   // The live loader overwrites this with whatever the chain actually says.
   priceMist: 50_000_000,
@@ -87,6 +93,7 @@ const FEATURED_WORKFLOWS: Workflow[] = [
   {
     id: "github-pr-digest",
     name: "PR Review Digest",
+    steps: ["PR 열림 감지", "변경 파일 분석", "리뷰 포인트 정리", "Slack 알림"],
     priceMist: 1200000000,
     users: 218,
     likes: 94,
@@ -101,6 +108,7 @@ const FEATURED_WORKFLOWS: Workflow[] = [
   {
     id: "invoice-parser",
     name: "Invoice Extractor",
+    steps: ["청구서 PDF 업로드", "금액 · 날짜 추출", "항목 검증", "회계 시트 기록"],
     priceMist: 1800000000,
     users: 176,
     likes: 71,
@@ -115,6 +123,7 @@ const FEATURED_WORKFLOWS: Workflow[] = [
   {
     id: "meeting-notes",
     name: "Meeting Recap",
+    steps: ["회의 녹음 입력", "음성 텍스트 변환", "결정 · 할 일 분리", "요약 메일 발송"],
     priceMist: 900000000,
     users: 412,
     likes: 155,
@@ -129,6 +138,7 @@ const FEATURED_WORKFLOWS: Workflow[] = [
   {
     id: "token-price-alert",
     name: "Token Watchlist",
+    steps: ["관심 토큰 등록", "가격 · 거래량 수집", "임계값 비교", "이상 감지 알림"],
     priceMist: 600000000,
     users: 289,
     likes: 103,
@@ -146,6 +156,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "resume-screener",
     name: "Resume Screener",
+    steps: ["채용 공고 기준 설정", "이력서 일괄 파싱", "요건 매칭 점수화", "상위 후보 정리"],
     priceMist: 1500000000,
     users: 531,
     likes: 214,
@@ -161,6 +172,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "competitor-watch",
     name: "Competitor Watch",
+    steps: ["경쟁사 목록 지정", "공개 채널 수집", "변화 지점 추출", "주간 리포트"],
     priceMist: 2200000000,
     users: 468,
     likes: 187,
@@ -176,6 +188,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "ticket-router",
     name: "Support Triage",
+    steps: ["문의 접수", "의도 · 긴급도 분류", "담당 큐 배정", "초안 답변 생성"],
     priceMist: 1100000000,
     users: 403,
     likes: 169,
@@ -191,6 +204,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "review-digest",
     name: "Review Digest",
+    steps: ["리뷰 수집", "긍정 · 부정 분리", "반복 키워드 집계", "개선 항목 요약"],
     priceMist: 800000000,
     users: 377,
     likes: 141,
@@ -206,6 +220,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "sentiment-tracker",
     name: "Sentiment Tracker",
+    steps: ["대상 키워드 설정", "언급 수집", "감성 점수 산출", "추세 그래프"],
     priceMist: 1400000000,
     users: 342,
     likes: 128,
@@ -221,6 +236,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "seo-keyword-report",
     name: "Keyword Report",
+    steps: ["시드 키워드 입력", "검색량 · 경쟁도 조회", "묶음 클러스터링", "우선순위 표"],
     priceMist: 1700000000,
     users: 298,
     likes: 112,
@@ -236,6 +252,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "standup-bot",
     name: "Standup Collector",
+    steps: ["팀원에게 질문 발송", "응답 취합", "차단 요인 표시", "스탠드업 요약"],
     priceMist: 500000000,
     users: 264,
     likes: 96,
@@ -251,6 +268,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "contract-risk",
     name: "Contract Reader",
+    steps: ["계약서 업로드", "조항 단위 분해", "위험 조항 표시", "검토 노트"],
     priceMist: 2500000000,
     users: 231,
     likes: 88,
@@ -266,6 +284,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "translation-pipeline",
     name: "Doc Translator",
+    steps: ["문서 업로드", "구조 유지 번역", "용어집 적용", "번역본 내려받기"],
     priceMist: 1300000000,
     users: 205,
     likes: 79,
@@ -281,6 +300,7 @@ const TRENDING_WORKFLOWS: Workflow[] = [
   {
     id: "filing-digest",
     name: "Filing Digest",
+    steps: ["공시 감시", "본문 · 첨부 파싱", "핵심 변경 추출", "요약 알림"],
     priceMist: 2100000000,
     users: 188,
     likes: 64,

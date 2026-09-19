@@ -3,7 +3,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { BarChart3, Heart, MessageCircle, Users } from "lucide-react";
 import { PurchaseModal } from "../components/PurchaseModal";
-import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
+import { WorkflowFlow } from "../components/WorkflowFlow";
 import { useToast } from "../components/Toast/ToastProvider";
 import { isRehearsalEnabled } from "../lib/rehearsal";
 import { formatSui } from "../lib/sui-amount";
@@ -182,11 +182,6 @@ export default function WorkflowDetail() {
               {formatSui(workflow.priceMist)}
             </button>
           </div>
-          <WorkflowThumbnail
-            workflow={workflow}
-            className="h-40 w-40 rounded-2xl"
-            textClassName="text-6xl"
-          />
         </div>
 
         <div className="flex items-start gap-10 mt-10 pt-6 border-t border-line">
@@ -200,6 +195,13 @@ export default function WorkflowDetail() {
             {workflow.description}
           </p>
         </div>
+
+        {workflow.steps !== undefined && workflow.steps.length > 0 && (
+          <section className="mt-10">
+            <h2 className="text-sm font-semibold text-muted mb-4">동작 방식</h2>
+            <WorkflowFlow steps={workflow.steps} />
+          </section>
+        )}
 
         {stats === undefined && sellerPanel !== undefined && (
           <section className="fm-card mt-10 p-6">
