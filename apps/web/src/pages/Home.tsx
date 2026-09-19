@@ -36,12 +36,7 @@ export default function Home() {
     <div className="min-h-screen bg-ink text-white">
       <div className="max-w-3xl mx-auto">
         <div className="mb-12 flex flex-col items-center text-center">
-          <div className="flex items-center gap-4">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-mint text-2xl font-bold text-ink">
-              W
-            </span>
-            <span className="text-5xl font-bold tracking-tight">FlowMarket</span>
-          </div>
+          <h1 className="text-5xl font-bold tracking-tight">FlowMarket</h1>
 
           {/* The chain everything here settles on, credited under the name. */}
           <a
@@ -57,9 +52,9 @@ export default function Home() {
           </a>
         </div>
 
-        <h1 className="text-3xl font-bold tracking-tight">
+        <p className="text-3xl font-bold tracking-tight">
           워크플로를 사고팔고, 산 워크플로를 실행합니다
-        </h1>
+        </p>
         <p className="mt-3 text-muted leading-relaxed break-keep">
           판매자는 워크플로 내부를 공개하지 않고 팝니다. 구매자는 라이선스를 사서
           결과만 받습니다. 구매도 실행 기록도 Sui 테스트넷에 남습니다.
