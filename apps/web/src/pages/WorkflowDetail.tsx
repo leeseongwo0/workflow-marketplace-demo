@@ -52,6 +52,9 @@ export default function WorkflowDetail() {
   const toggleLike = useWorkflowStore((s) => s.toggleLike);
   // Listings built on this one. A fork consumes the output, so the original
   // keeps its prompt and steps private while still being credited here.
+  const forkParent = workflows.find(
+    (candidate) => candidate.id === workflow?.forkedFrom,
+  );
   const forks = useMemo(
     () => workflows.filter((candidate) => candidate.forkedFrom === workflowId),
     [workflows, workflowId],
@@ -182,13 +185,29 @@ export default function WorkflowDetail() {
                 <span className="text-xs">좋아요</span>
               </button>
             </div>
-            <button
-              type="button"
-              onClick={handlePurchaseClick}
-              className="rounded-2xl bg-blue px-7 py-3.5 text-lg font-bold text-white shadow-lg shadow-blue/20 hover:opacity-90"
-            >
-              {formatSui(workflow.priceMist)}
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handlePurchaseClick}
+                className="rounded-2xl bg-blue px-7 py-3.5 text-lg font-bold text-white shadow-lg shadow-blue/20 hover:opacity-90"
+              >
+                {formatSui(workflow.priceMist)}
+              </button>
+
+              {/* Credit for the workflow this one builds on, next to the price
+                  because that is where the eye already is. */}
+              {forkParent !== undefined && (
+                <Link
+                  to={`/marketplace/${forkParent.id}`}
+                  className="flex items-center gap-2 rounded-2xl border border-line px-4 py-3 text-sm text-muted hover:border-mint hover:text-mint"
+                >
+                  <GitFork className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                  <span>
+                    Forked from <span className="font-semibold">{forkParent.name}</span>
+                  </span>
+                </Link>
+              )}
+            </div>
           </div>
 
           {/* Sits where the thumbnail used to, so the first thing beside the
@@ -202,6 +221,54 @@ export default function WorkflowDetail() {
             </div>
           )}
         </div>
+
+        {forks.length > 0 && (
+          <section className="mt-10">
+            <button
+              type="button"
+              onClick={() => setShowForks((open) => !open)}
+              aria-expanded={showForks}
+              className="fm-card fm-card-interactive flex w-full items-center gap-3 px-4 py-3.5 text-left"
+            >
+              <GitFork className="h-4 w-4 text-mint" aria-hidden="true" />
+              <span className="flex-1 text-sm font-semibold">
+                이 워크플로를 포크한 워크플로
+                <span className="ml-2 font-normal text-muted">{forks.length}</span>
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 text-muted transition-transform ${showForks ? "rotate-180" : ""}`}
+                aria-hidden="true"
+              />
+            </button>
+
+            {showForks && (
+              <ul className="mt-2 flex flex-col gap-2">
+                {forks.map((fork) => (
+                  <li key={fork.id}>
+                    <Link
+                      to={`/marketplace/${fork.id}`}
+                      className="fm-card fm-card-interactive flex items-start gap-4 px-4 py-3.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="truncate font-semibold">{fork.name}</span>
+                          <span className="whitespace-nowrap font-semibold">
+                            {formatSui(fork.priceMist)}
+                          </span>
+                        </div>
+                        {fork.steps !== undefined && (
+                          <p className="mt-1 truncate text-xs text-muted">
+                            {fork.steps.join(" → ")}
+                          </p>
+                        )}
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
 
         <div className="flex items-start gap-10 mt-10 pt-6 border-t border-line">
           <div className="flex-shrink-0">
@@ -282,54 +349,6 @@ export default function WorkflowDetail() {
                 }`}
               />
             </dl>
-          </section>
-        )}
-
-        {forks.length > 0 && (
-          <section className="mt-10">
-            <button
-              type="button"
-              onClick={() => setShowForks((open) => !open)}
-              aria-expanded={showForks}
-              className="fm-card fm-card-interactive flex w-full items-center gap-3 px-4 py-3.5 text-left"
-            >
-              <GitFork className="h-4 w-4 text-mint" aria-hidden="true" />
-              <span className="flex-1 text-sm font-semibold">
-                이 워크플로를 포크한 워크플로
-                <span className="ml-2 font-normal text-muted">{forks.length}</span>
-              </span>
-              <ChevronDown
-                className={`h-4 w-4 text-muted transition-transform ${showForks ? "rotate-180" : ""}`}
-                aria-hidden="true"
-              />
-            </button>
-
-            {showForks && (
-              <ul className="mt-2 flex flex-col gap-2">
-                {forks.map((fork) => (
-                  <li key={fork.id}>
-                    <Link
-                      to={`/marketplace/${fork.id}`}
-                      className="fm-card fm-card-interactive flex items-start gap-4 px-4 py-3.5"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-3">
-                          <span className="truncate font-semibold">{fork.name}</span>
-                          <span className="whitespace-nowrap font-semibold">
-                            {formatSui(fork.priceMist)}
-                          </span>
-                        </div>
-                        {fork.steps !== undefined && (
-                          <p className="mt-1 truncate text-xs text-muted">
-                            {fork.steps.join(" → ")}
-                          </p>
-                        )}
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
           </section>
         )}
 
