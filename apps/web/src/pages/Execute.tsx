@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import { Check, ExternalLink, History, Play, ShieldCheck } from "lucide-react";
+import { Check, ExternalLink, History, Play, RefreshCw, ShieldCheck } from "lucide-react";
 
 import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
 import { LIVE_WORKFLOW_ID } from "../live/live-release";
@@ -108,21 +108,27 @@ export default function Execute() {
                 </p>
               )}
 
-              {/* Re-running costs gas and a signature, so an earlier result is
-                  offered back instead of making the user pay for it twice. */}
+              {/* Two ways back to an earlier search: the stored result, which
+                  needs no signature and no executor, or the same query run
+                  again for current news. Typing it out a second time is the
+                  only thing being saved either way. */}
               {execute.history.length > 0 && !execute.busy && (
                 <div className="mt-5 border-t border-line pt-4">
                   <p className="flex items-center gap-2 text-xs text-muted">
                     <History className="h-3.5 w-3.5" aria-hidden="true" />
-                    이전 실행 결과 — 다시 실행하지 않고 볼 수 있습니다
+                    이전 검색어
                   </p>
                   <ul className="mt-3 flex flex-col gap-2">
                     {execute.history.map((entry) => (
-                      <li key={entry.response.executionId}>
+                      <li
+                        key={entry.response.executionId}
+                        className="flex items-center gap-2 rounded-xl border border-line px-3 py-2"
+                      >
                         <button
                           type="button"
                           onClick={() => void execute.replay(entry)}
-                          className="flex w-full items-center justify-between gap-3 rounded-xl border border-line px-4 py-2.5 text-left text-sm hover:border-mint"
+                          title="저장된 결과를 다시 봅니다. 지갑 서명이 필요 없습니다."
+                          className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left text-sm hover:text-mint"
                         >
                           <span className="truncate">{entry.response.input.query}</span>
                           <span className="flex-shrink-0 text-xs text-muted">
@@ -135,9 +141,25 @@ export default function Execute() {
                             })}
                           </span>
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuery(entry.response.input.query);
+                            void execute.run(entry.response.input.query);
+                          }}
+                          title="같은 검색어로 지금 다시 실행합니다. 지갑 서명이 한 번 필요합니다."
+                          className="flex flex-shrink-0 items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-xs text-muted hover:border-mint hover:text-mint"
+                        >
+                          <RefreshCw className="h-3 w-3" aria-hidden="true" />
+                          최신으로
+                        </button>
                       </li>
                     ))}
                   </ul>
+                  <p className="mt-2 text-xs text-muted">
+                    검색어를 누르면 저장된 결과가, &lsquo;최신으로&rsquo;를 누르면
+                    지금 기준 뉴스가 나옵니다.
+                  </p>
                 </div>
               )}
 
