@@ -9,6 +9,7 @@ import { isRehearsalEnabled } from "../lib/rehearsal";
 import { formatSui } from "../lib/sui-amount";
 import { LIVE_WORKFLOW_ID } from "../live/live-release";
 import { usePurchaseLicense } from "../live/use-purchase-license";
+import { useSellerPanel } from "../live/use-seller-panel";
 import { useWorkflowStats } from "../live/use-workflow-stats";
 import { useOnChainWorkflow } from "../live/use-onchain-workflow";
 import { OnChainWorkflowDetail } from "../components/OnChainWorkflowDetail";
@@ -68,6 +69,10 @@ export default function WorkflowDetail() {
   // the panel is read from chain; the catalog numbers are demo dressing and
   // must not be mixed in with it.
   const stats = useWorkflowStats(workflow?.id === LIVE_WORKFLOW_ID);
+  // Shown on a listing the connected wallet registered itself. The deployed
+  // release has real numbers behind it; a freshly registered one does not, so
+  // that case falls back to sample values and says so.
+  const sellerPanel = useSellerPanel(workflow?.id);
 
   if (!workflow) {
     // Not in the demo catalog: this is either a workflow registered through
@@ -195,6 +200,34 @@ export default function WorkflowDetail() {
             {workflow.description}
           </p>
         </div>
+
+        {stats === undefined && sellerPanel !== undefined && (
+          <section className="fm-card mt-10 p-6">
+            <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold">
+              <BarChart3 className="h-5 w-5 text-mint" aria-hidden="true" />
+              판매자 대시보드
+              <span className="rounded-full border border-line px-2 py-0.5 text-xs font-normal text-muted">
+                판매자에게만 보임
+              </span>
+              {sellerPanel.sample && (
+                <span className="rounded-full border border-amber-400/50 bg-amber-400/10 px-2 py-0.5 text-xs font-normal text-amber-300">
+                  예시 데이터
+                </span>
+              )}
+            </h2>
+            <p className="mt-2 text-xs text-muted">
+              판매가 쌓이면 이 자리에 실제 값이 들어갑니다. 방금 등록한
+              워크플로는 거래 기록이 없어 화면 구성을 보여주기 위한 예시 값을
+              띄웁니다.
+            </p>
+            <dl className="mt-5 grid gap-5 sm:grid-cols-2">
+              <StatRow label="누적 거래액" value={sellerPanel.earnedSui} />
+              <StatRow label="실행 횟수" value={`${sellerPanel.executionCount}회`} />
+              <StatRow label="마지막 실행" value={sellerPanel.lastExecutedLabel} />
+              <StatRow label="라이선스 조건" value={sellerPanel.licenceTerms} />
+            </dl>
+          </section>
+        )}
 
         {stats !== undefined && (
           <section className="fm-card mt-10 p-6">
