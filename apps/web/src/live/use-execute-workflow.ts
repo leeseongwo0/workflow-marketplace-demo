@@ -44,11 +44,28 @@ const STEP_LABEL: Partial<Record<ExecuteStep, string>> = {
   verifying: "실행 결과와 영수증을 검증하는 중…",
 };
 
-export const RECORD_STATUS_LABEL: Partial<Record<RecordStatus, string>> = {
-  opening_request: "온체인 실행 요청을 여는 중… (지갑 서명)",
-  signing: "실행 기록을 남기는 중… (지갑 서명)",
-  confirming: "체인에서 기록이 확정되기를 기다리는 중…",
-};
+/**
+ * Recording normally needs two signatures, but a retry that reuses a request
+ * already opened needs only the second. The counter has to follow that or it
+ * promises a wallet prompt that never comes.
+ */
+export function recordStatusLabelFor(
+  status: RecordStatus,
+  signatures: 1 | 2,
+): string | undefined {
+  if (status === "opening_request") {
+    return "온체인 실행 요청을 여는 중… (지갑 서명 1/2)";
+  }
+  if (status === "signing") {
+    return signatures === 2
+      ? "실행 기록을 남기는 중… (지갑 서명 2/2)"
+      : "실행 기록을 남기는 중… (지갑 서명)";
+  }
+  if (status === "confirming") {
+    return "체인에서 기록이 확정되기를 기다리는 중…";
+  }
+  return undefined;
+}
 
 /*
  * The contract gives an ExecutionRequest ten minutes; stopping a minute short
@@ -107,6 +124,7 @@ export function useExecuteWorkflow() {
   const [openRequest, setOpenRequest] = useState<
     { id: string; expiresAtMs: number } | undefined
   >(undefined);
+  const [recordSignatures, setRecordSignatures] = useState<1 | 2>(2);
 
   const ready =
     account !== null &&
@@ -239,7 +257,6 @@ export function useExecuteWorkflow() {
       return;
     }
     setError(undefined);
-    setRecordStatus("opening_request");
     try {
       const reusable =
         openRequest !== undefined && openRequest.expiresAtMs > Date.now()
@@ -247,7 +264,9 @@ export function useExecuteWorkflow() {
           : undefined;
 
       let requestId: string;
+      setRecordSignatures(reusable === undefined ? 2 : 1);
       if (reusable === undefined) {
+        setRecordStatus("opening_request");
         const openSigned = await dAppKit.signTransaction({
           transaction: buildCreateExecutionRequestTransaction({
             packageId: webConfig.packageId,
@@ -313,7 +332,7 @@ export function useExecuteWorkflow() {
     receipt,
     recorded,
     recordStatus,
-    recordStatusLabel: RECORD_STATUS_LABEL[recordStatus],
+    recordStatusLabel: recordStatusLabelFor(recordStatus, recordSignatures),
     run,
     record,
   };
