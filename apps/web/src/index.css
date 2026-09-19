@@ -15,7 +15,8 @@
   --color-paper: #f1f5ee;
   --color-mint: #79f2bd;
   --color-lime: #cef66a;
-  --color-blue: #3182f6;
+  /* Sui brand blue: the chain this runs on, so the primary action wears it. */
+  --color-blue: #4da2ff;
 
   --font-sans:
     "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,

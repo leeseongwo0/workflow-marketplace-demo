@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Store, Upload } from "lucide-react";
+import { Store, Upload } from "lucide-react";
 
 /**
  * The landing page.
@@ -31,15 +31,6 @@ const FLOW = [
   { step: "기록", body: "실행 사실이 체인에 남습니다." },
 ];
 
-/** Sui's drop mark, drawn inline so the page carries no external asset. */
-function SuiMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
-      <path d="M12 1.6c.3 0 .6.16.77.43l5.2 8.05a9.2 9.2 0 0 1 1.48 5.02A7.45 7.45 0 0 1 12 22.4a7.45 7.45 0 0 1-7.45-7.3 9.2 9.2 0 0 1 1.48-5.02l5.2-8.05A.92.92 0 0 1 12 1.6Zm0 3.35L7.74 11.5a7.4 7.4 0 0 0-1.19 3.6A5.45 5.45 0 0 0 12 20.4a5.45 5.45 0 0 0 5.45-5.3 7.4 7.4 0 0 0-1.19-3.6L12 4.95Z" />
-    </svg>
-  );
-}
-
 export default function Home() {
   return (
     <div className="min-h-screen bg-ink text-white">
@@ -59,7 +50,7 @@ export default function Home() {
             rel="noreferrer"
             className="mt-5 flex items-center gap-2 rounded-full border border-line px-4 py-2 text-sm text-muted transition hover:border-mint hover:text-white"
           >
-            <SuiMark className="h-4 w-4 text-[#4DA2FF]" />
+            <img src="/sui-mark.png" alt="" aria-hidden="true" className="h-5 w-5 rounded" />
             <span>
               Built on <span className="font-semibold text-white">Sui</span>
             </span>
@@ -73,16 +64,6 @@ export default function Home() {
           판매자는 워크플로 내부를 공개하지 않고 팝니다. 구매자는 라이선스를 사서
           결과만 받습니다. 구매도 실행 기록도 Sui 테스트넷에 남습니다.
         </p>
-
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            to="/marketplace"
-            className="flex items-center gap-2 rounded-2xl bg-blue px-6 py-3 text-sm font-semibold text-white hover:opacity-90"
-          >
-            마켓 둘러보기
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        </div>
 
         <div className="mt-12 grid gap-3 sm:grid-cols-2">
           {ENTRIES.map((entry) => (
