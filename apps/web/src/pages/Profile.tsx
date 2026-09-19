@@ -23,6 +23,7 @@ export default function Profile() {
   const addToast = useToast().addToast;
   const { ids: ownedIds, loading: loadingOwned } = useOwnedWorkflowIds();
   const { workflows: registeredFromChain } = useRegisteredWorkflows();
+  const purchasedInApp = useWorkflowStore((s) => s.purchasedWorkflows);
   const [tab, setTab] = useState<ProfileTab>("purchased");
   const [composingFor, setComposingFor] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -35,9 +36,14 @@ export default function Profile() {
     );
   }
 
-  // Both lists come from what actually exists on chain. Registration is not
-  // built yet, so the registered tab stays empty until it is.
-  const purchasedWorkflows = ownedIds
+  // On-chain licences first, then anything the app itself counts as owned.
+  // The forked brief is the second kind: it has no release behind it, so no
+  // licence can exist for it, but the catalog carries it as owned so the fork
+  // story can be walked without buying anything.
+  const ownedFromApp = purchasedInApp
+    .map((entry) => entry.workflowId)
+    .filter((id) => !ownedIds.includes(id));
+  const purchasedWorkflows = [...ownedIds, ...ownedFromApp]
     .map((id) => workflows.find((w) => w.id === id))
     .filter((w): w is NonNullable<typeof w> => w !== undefined);
 
