@@ -9,6 +9,8 @@ import { isRehearsalEnabled } from "../lib/rehearsal";
 import { formatSui } from "../lib/sui-amount";
 import { LIVE_WORKFLOW_ID } from "../live/live-release";
 import { usePurchaseLicense } from "../live/use-purchase-license";
+import { useOnChainWorkflow } from "../live/use-onchain-workflow";
+import { OnChainWorkflowDetail } from "../components/OnChainWorkflowDetail";
 import { useWorkflowStore } from "../stores/workflow-store";
 
 export default function WorkflowDetail() {
@@ -35,8 +37,23 @@ export default function WorkflowDetail() {
   // ?rehearsal=1 registers the flag for the rest of the session.
   const rehearsalEnabled = isRehearsalEnabled(location.search);
   const purchase = usePurchaseLicense({ allowRepurchase: rehearsalEnabled });
+  // Hooks cannot run conditionally, so this loads for every id and simply
+  // stays idle for the catalog entries that never reach the fallback below.
+  const onChain = useOnChainWorkflow(workflow === undefined ? workflowId : undefined);
 
   if (!workflow) {
+    // Not in the demo catalog: this is either a workflow registered through
+    // the app (its id is the on-chain release object id) or a bad link.
+    if (onChain.status === "loading") {
+      return (
+        <div className="min-h-screen bg-ink text-white flex items-center justify-center">
+          <p className="text-muted">체인에서 워크플로를 불러오는 중…</p>
+        </div>
+      );
+    }
+    if (onChain.status === "found" && onChain.workflow !== undefined) {
+      return <OnChainWorkflowDetail workflow={onChain.workflow} />;
+    }
     return (
       <div className="min-h-screen bg-ink text-white flex flex-col items-center justify-center gap-4">
         <p className="text-muted">Workflow not found.</p>
