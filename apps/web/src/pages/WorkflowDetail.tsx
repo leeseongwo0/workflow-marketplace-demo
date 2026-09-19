@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import { BarChart3, Heart, MessageCircle, Users } from "lucide-react";
+import { BarChart3, ChevronDown, GitFork, Heart, MessageCircle, Users } from "lucide-react";
 import { PurchaseModal } from "../components/PurchaseModal";
 import { WorkflowFlow } from "../components/WorkflowFlow";
 import { useToast } from "../components/Toast/ToastProvider";
@@ -43,12 +43,19 @@ export default function WorkflowDetail() {
   const location = useLocation();
   const account = useCurrentAccount();
   const addToast = useToast().addToast;
-  const workflow = useWorkflowStore((s) => s.workflows.find((w) => w.id === workflowId));
+  const workflows = useWorkflowStore((s) => s.workflows);
+  const workflow = workflows.find((w) => w.id === workflowId);
   const allComments = useWorkflowStore((s) => s.comments);
   const updateComment = useWorkflowStore((s) => s.updateComment);
   const deleteComment = useWorkflowStore((s) => s.deleteComment);
   const likedWorkflowIds = useWorkflowStore((s) => s.likedWorkflowIds);
   const toggleLike = useWorkflowStore((s) => s.toggleLike);
+  // Listings built on this one. A fork consumes the output, so the original
+  // keeps its prompt and steps private while still being credited here.
+  const forks = useMemo(
+    () => workflows.filter((candidate) => candidate.forkedFrom === workflowId),
+    [workflows, workflowId],
+  );
   const comments = useMemo(
     () => allComments.filter((comment) => comment.workflowId === workflowId),
     [allComments, workflowId],
@@ -57,6 +64,7 @@ export default function WorkflowDetail() {
   const [editDraft, setEditDraft] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [showPurchase, setShowPurchase] = useState(false);
+  const [showForks, setShowForks] = useState(false);
   const cameFromSearch = (location.state as { from?: string } | null)?.from === "search";
   // Evaluated on render, not inside the modal, so landing on the page with
   // ?rehearsal=1 registers the flag for the rest of the session.
@@ -274,6 +282,54 @@ export default function WorkflowDetail() {
                 }`}
               />
             </dl>
+          </section>
+        )}
+
+        {forks.length > 0 && (
+          <section className="mt-10">
+            <button
+              type="button"
+              onClick={() => setShowForks((open) => !open)}
+              aria-expanded={showForks}
+              className="fm-card fm-card-interactive flex w-full items-center gap-3 px-4 py-3.5 text-left"
+            >
+              <GitFork className="h-4 w-4 text-mint" aria-hidden="true" />
+              <span className="flex-1 text-sm font-semibold">
+                이 워크플로를 포크한 워크플로
+                <span className="ml-2 font-normal text-muted">{forks.length}</span>
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 text-muted transition-transform ${showForks ? "rotate-180" : ""}`}
+                aria-hidden="true"
+              />
+            </button>
+
+            {showForks && (
+              <ul className="mt-2 flex flex-col gap-2">
+                {forks.map((fork) => (
+                  <li key={fork.id}>
+                    <Link
+                      to={`/marketplace/${fork.id}`}
+                      className="fm-card fm-card-interactive flex items-start gap-4 px-4 py-3.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="truncate font-semibold">{fork.name}</span>
+                          <span className="whitespace-nowrap font-semibold">
+                            {formatSui(fork.priceMist)}
+                          </span>
+                        </div>
+                        {fork.steps !== undefined && (
+                          <p className="mt-1 truncate text-xs text-muted">
+                            {fork.steps.join(" → ")}
+                          </p>
+                        )}
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         )}
 

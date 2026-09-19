@@ -58,9 +58,6 @@ export function Layout() {
               <Link to="/register" className="text-white text-sm font-medium hover:text-mint">
                 Register
               </Link>
-              <Link to="/fork" className="text-white text-sm font-medium hover:text-mint">
-                Fork &amp; Remix
-              </Link>
               <span
                 title="현재 연결된 Sui 네트워크"
                 className="flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs font-medium text-muted"

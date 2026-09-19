@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import { Check } from "lucide-react";
+import { Check, GitFork } from "lucide-react";
 
 import { isRehearsalEnabled } from "../lib/rehearsal";
+import { useWorkflowStore } from "../stores/workflow-store";
 import { explorerObjectUrl, webConfig } from "../live/config";
 import { useRegisterWorkflow } from "../live/use-register-workflow";
 
@@ -39,6 +40,18 @@ export default function Register() {
   const navigate = useNavigate();
   const register = useRegisterWorkflow();
   const rehearsalEnabled = isRehearsalEnabled(location.search);
+
+  // Forking starts from something already bought: you can only build on a
+  // workflow whose output you have a licence to. Picking one is as far as this
+  // screen goes for now — what a fork registration writes on chain is left out.
+  const workflows = useWorkflowStore((s) => s.workflows);
+  const purchasedWorkflows = useWorkflowStore((s) => s.purchasedWorkflows);
+  const purchased = workflows.filter((workflow) =>
+    purchasedWorkflows.some((entry) => entry.workflowId === workflow.id),
+  );
+  const [pickingFork, setPickingFork] = useState(false);
+  const [forkSource, setForkSource] = useState<string | undefined>(undefined);
+  const forkSourceWorkflow = workflows.find((workflow) => workflow.id === forkSource);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -131,6 +144,80 @@ export default function Register() {
           입력한 내용으로 Sui 테스트넷에 워크플로를 등록합니다. 이 화면은
           메타데이터만 등록하며, 실행에 필요한 번들 업로드는 별도 도구가 담당합니다.
         </p>
+
+        <div className="mb-4 rounded-2xl border border-line bg-panel p-5">
+          {forkSourceWorkflow === undefined ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">다른 워크플로를 포크해서 등록</p>
+                  <p className="mt-1 text-xs text-muted">
+                    구매한 워크플로의 결과를 재료로 쓰는 워크플로를 올립니다. 원본의
+                    프롬프트나 내부 단계는 받지 않고 결과만 가져옵니다.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPickingFork((open) => !open)}
+                  aria-expanded={pickingFork}
+                  className="flex flex-shrink-0 items-center gap-2 rounded-xl border border-line px-4 py-2.5 text-sm font-medium hover:border-mint hover:text-mint"
+                >
+                  <GitFork className="h-4 w-4" aria-hidden="true" />
+                  포크
+                </button>
+              </div>
+
+              {pickingFork && (
+                <div className="mt-4 border-t border-line pt-4">
+                  {purchased.length === 0 ? (
+                    <p className="text-xs text-muted">
+                      구매한 워크플로가 없습니다. 마켓플레이스에서 라이선스를 구매하면
+                      그 결과를 포크할 수 있습니다.
+                    </p>
+                  ) : (
+                    <ul className="flex flex-col gap-2">
+                      {purchased.map((workflow) => (
+                        <li key={workflow.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setForkSource(workflow.id);
+                              setPickingFork(false);
+                            }}
+                            className="fm-card fm-card-interactive flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                          >
+                            <span className="truncate text-sm font-medium">{workflow.name}</span>
+                            <span className="flex-shrink-0 text-xs text-muted">선택</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs text-muted">포크할 원본</p>
+                <p className="mt-1 flex items-center gap-2 text-sm font-semibold">
+                  <GitFork className="h-4 w-4 flex-shrink-0 text-mint" aria-hidden="true" />
+                  <span className="truncate">{forkSourceWorkflow.name}</span>
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  이 워크플로의 결과가 새 워크플로의 입력이 됩니다.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForkSource(undefined)}
+                className="flex-shrink-0 rounded-xl border border-line px-3 py-2 text-xs text-muted hover:text-white"
+              >
+                해제
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="rounded-2xl border border-line bg-panel p-6 flex flex-col gap-5">
           <div>

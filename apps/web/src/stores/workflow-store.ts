@@ -24,6 +24,12 @@ export type Workflow = {
    * so a listing reads as a pipeline rather than a name and a price.
    */
   steps?: string[];
+  /**
+   * The workflow whose output this one builds on. A fork consumes the original
+   * result, not its prompt or internal steps, so the original stays private
+   * while its output becomes material for someone else.
+   */
+  forkedFrom?: string;
 };
 
 export type PurchasedWorkflow = {
@@ -88,6 +94,57 @@ const GOOGLE_NEWS_WORKFLOW: Workflow = {
   accent: "from-blue/80 to-mint/60",
   workflowType: "google_news_rss/v1",
 };
+
+const FORKED_WORKFLOWS: Workflow[] = [
+  {
+    id: "economic-impact-analyst",
+    name: "Economic Impact Analyst",
+    forkedFrom: "google-news-rss",
+    steps: ["뉴스 결과 수신", "언급 자산 식별", "긍정 · 부정 요인 분리", "시장 영향 판정"],
+    priceMist: 800000000,
+    users: 74,
+    likes: 31,
+    creator: "0x5b2e…91c7",
+    lastUpdate: "2 days ago",
+    description:
+      "Google News RSS Monitor가 내놓은 기사 목록을 받아, 거기 언급된 자산의 시장 영향도를 따집니다. 원본 워크플로의 프롬프트는 보지 않고 결과만 재료로 씁니다.",
+    category: "featured",
+    icon: "📈",
+    accent: "from-mint/60 to-lime/40",
+  },
+  {
+    id: "supply-chain-analyst",
+    name: "Supply Chain Analyst",
+    forkedFrom: "google-news-rss",
+    steps: ["뉴스 결과 수신", "기업 · 부품 추출", "의존 관계 매핑", "병목 위험 산출"],
+    priceMist: 700000000,
+    users: 52,
+    likes: 24,
+    creator: "0xa71d…4e60",
+    lastUpdate: "2 days ago",
+    description:
+      "같은 뉴스 결과를 공급망 관점으로 다시 읽습니다. 어떤 기업이 어디에 묶여 있는지, 병목이 생길 지점이 어디인지 정리합니다.",
+    category: "featured",
+    icon: "🏭",
+    accent: "from-blue/60 to-mint/40",
+  },
+  {
+    id: "ai-morning-brief",
+    name: "AI Morning Brief",
+    forkedFrom: "google-news-rss",
+    steps: ["뉴스 결과 수신", "중요도 순 정렬", "핵심 3건 선별", "한 줄 브리핑"],
+    priceMist: 400000000,
+    users: 138,
+    likes: 66,
+    creator: "0x3d94…c2b8",
+    lastUpdate: "1 day ago",
+    description:
+      "뉴스 결과를 아침에 읽기 좋은 길이로 줄입니다. 오늘 꼭 알아야 할 세 건과 한 줄 요약만 남깁니다.",
+    category: "featured",
+    icon: "☀️",
+    accent: "from-lime/50 to-blue/40",
+  },
+];
 
 const FEATURED_WORKFLOWS: Workflow[] = [
   {
@@ -317,6 +374,8 @@ const TRENDING_WORKFLOWS: Workflow[] = [
 
 const MOCK_WORKFLOWS: Workflow[] = [
   GOOGLE_NEWS_WORKFLOW,
+  // Right after the workflow they build on, so the catalog reads as a lineage.
+  ...FORKED_WORKFLOWS,
   ...FEATURED_WORKFLOWS,
   ...TRENDING_WORKFLOWS,
 ];
