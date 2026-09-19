@@ -10,8 +10,8 @@ import {
   verifyExecutionContent,
   verifyExecutionReceipt,
 } from "./executor-client";
-import type { OwnedLicense, OwnedReceipt } from "./sui-objects";
-import { findOwnedLicense, findRecordedReceipt } from "./sui-objects";
+import type { OwnedLicense } from "./sui-objects";
+import { findOwnedLicense } from "./sui-objects";
 import {
   buildCreateExecutionRequestTransaction,
   buildRecordReceiptTransaction,
@@ -62,24 +62,6 @@ function decodeBase64(value: string): Uint8Array {
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 }
 
-/**
- * A freshly created object is not immediately listable, so a single lookup
- * right after the transaction lands reports "not recorded" for a record that
- * in fact succeeded. The purchase path already retries for the same reason.
- */
-async function findReceiptWithRetry(
-  input: Parameters<typeof findRecordedReceipt>[0],
-) {
-  for (let attempt = 0; attempt < 6; attempt += 1) {
-    const found = await findRecordedReceipt(input);
-    if (found !== undefined) return found;
-    if (attempt < 5) {
-      await new Promise<void>((resolve) => window.setTimeout(resolve, 1_000));
-    }
-  }
-  return undefined;
-}
-
 function messageFor(cause: unknown): string {
   if (cause instanceof ExecutorApiError) {
     if (cause.code === "EXECUTOR_UNREACHABLE") {
@@ -113,7 +95,10 @@ export function useExecuteWorkflow() {
   const [execution, setExecution] = useState<ExecutionResponse | undefined>(undefined);
   const [receipt, setReceipt] = useState<VerifiedReceipt | undefined>(undefined);
   const [license, setLicense] = useState<OwnedLicense | undefined>(undefined);
-  const [recorded, setRecorded] = useState<OwnedReceipt | undefined>(undefined);
+  // The id of the receipt this run wrote, not "some receipt for this release".
+  // Receipts on chain carry no execution identity, so an older one says nothing
+  // about whether the execution on screen has been recorded.
+  const [recorded, setRecorded] = useState<string | undefined>(undefined);
   const [recordStatus, setRecordStatus] = useState<RecordStatus>("idle");
   // Kept across attempts on purpose. Recording needs two wallet signatures and
   // the zkLogin prover fails on the second when both are asked for back to
@@ -225,17 +210,8 @@ export function useExecuteWorkflow() {
         expectedLicenseId: owned.id,
         expectedRunner: account.address,
       });
-      const already = await findRecordedReceipt({
-        client,
-        packageId: webConfig.packageId,
-        owner: account.address,
-        releaseId: release.id,
-      });
-
       setExecution(response);
       setReceipt(verified);
-      setRecorded(already);
-      setRecordStatus(already === undefined ? "idle" : "recorded");
       setStep("done");
     } catch (cause) {
       setError(messageFor(cause));
@@ -303,7 +279,7 @@ export function useExecuteWorkflow() {
         account,
         network: "testnet",
       });
-      await executeSignedTransaction({ client, signed: recordSigned });
+      const recordExecuted = await executeSignedTransaction({ client, signed: recordSigned });
       // The request is spent the moment this lands. Dropping it here rather
       // than after the lookup below matters: if the lookup fails, a retry that
       // still held this id would abort with "request already claimed" and the
@@ -311,14 +287,11 @@ export function useExecuteWorkflow() {
       setOpenRequest(undefined);
 
       setRecordStatus("confirming");
-      const found = await findReceiptWithRetry({
-        client,
-        packageId: webConfig.packageId,
-        owner: account.address,
-        releaseId: release.id,
-      });
-      if (found === undefined) throw new Error("기록된 영수증을 아직 확인하지 못했습니다.");
-      setRecorded(found);
+      // The effects name the receipt this transaction created, so there is
+      // nothing to look up and nothing to wait for indexing on.
+      setRecorded(
+        requireCreated(recordExecuted, `${webConfig.packageId}::execution::ExecutionReceipt`),
+      );
       setRecordStatus("recorded");
     } catch (cause) {
       // The UI only ever shows a flattened message. Recording spans two wallet
