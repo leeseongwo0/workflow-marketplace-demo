@@ -182,6 +182,17 @@ export default function WorkflowDetail() {
               {formatSui(workflow.priceMist)}
             </button>
           </div>
+
+          {/* Sits where the thumbnail used to, so the first thing beside the
+              name is what the workflow actually does. */}
+          {workflow.steps !== undefined && workflow.steps.length > 0 && (
+            <div className="hidden w-80 flex-shrink-0 rounded-2xl border border-line bg-panel p-5 sm:block">
+              <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
+                동작 방식
+              </p>
+              <WorkflowFlow steps={workflow.steps} />
+            </div>
+          )}
         </div>
 
         <div className="flex items-start gap-10 mt-10 pt-6 border-t border-line">
@@ -197,8 +208,10 @@ export default function WorkflowDetail() {
         </div>
 
         {workflow.steps !== undefined && workflow.steps.length > 0 && (
-          <section className="mt-10">
-            <h2 className="text-sm font-semibold text-muted mb-4">동작 방식</h2>
+          <section className="mt-10 sm:hidden">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
+              동작 방식
+            </h2>
             <WorkflowFlow steps={workflow.steps} />
           </section>
         )}
