@@ -9,6 +9,7 @@ const Search = lazy(() => import("./pages/Search"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Register = lazy(() => import("./pages/Register"));
 const Execute = lazy(() => import("./pages/Execute"));
+const ForkDemo = lazy(() => import("./pages/ForkDemo"));
 
 export function App() {
   return (
@@ -23,6 +24,7 @@ export function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/register" element={<Register />} />
             <Route path="/execute/:id" element={<Execute />} />
+            <Route path="/fork" element={<ForkDemo />} />
           </Route>
         </Routes>
       </Suspense>
