@@ -384,7 +384,12 @@ let commentId = 0;
 
 export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   workflows: MOCK_WORKFLOWS,
-  purchasedWorkflows: [],
+  // Starts out owned so the fork story can be shown without buying anything:
+  // this listing has no bundle behind it, so a purchase would be theatre. Its
+  // execute screen presents a saved result rather than running anything.
+  purchasedWorkflows: [
+    { workflowId: "ai-morning-brief", purchasedAt: "2026-09-19T08:40:00.000Z" },
+  ],
   likedWorkflowIds: [],
   comments: [],
   addWorkflow: (workflow: Workflow) =>

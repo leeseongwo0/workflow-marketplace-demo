@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Check, ExternalLink, History, Play, RefreshCw, ShieldCheck } from "lucide-react";
 
+import { BriefResult } from "../components/BriefResult";
 import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
 import { LIVE_WORKFLOW_ID } from "../live/live-release";
+import { listExecutionHistory } from "../live/execution-history";
 import { useExecuteWorkflow } from "../live/use-execute-workflow";
 import { useWorkflowStore } from "../stores/workflow-store";
 
@@ -36,6 +38,27 @@ export default function Execute() {
   }
 
   const runnable = workflow.id === LIVE_WORKFLOW_ID;
+
+  // The forked brief has no bundle, so its screen shows a saved run instead of
+  // offering to start one. Its headlines come from the original workflow's last
+  // real result when this browser has one, because a fork is built out of the
+  // original's output — showing that literally is stronger than describing it.
+  const BRIEF_ID = "ai-morning-brief";
+  const FALLBACK_STORIES = [
+    "NVIDIA, AI 데이터센터 수요로 GPU 주문 급증",
+    "미국, 첨단 반도체 수출 규제 추가 검토",
+    "TSMC·SK하이닉스, HBM 생산능력 확대 논의",
+  ];
+  const savedBrief = useMemo(() => {
+    if (workflow?.id !== BRIEF_ID) return undefined;
+    const latest =
+      account === null ? undefined : listExecutionHistory(account.address)[0];
+    const titles = latest?.response.result.items.slice(0, 3).map((item) => item.title);
+    return {
+      topStories: titles !== undefined && titles.length > 0 ? titles : FALLBACK_STORIES,
+      executedAtMs: latest?.executedAtMs ?? Date.parse("2026-09-19T08:42:00.000Z"),
+    };
+  }, [workflow?.id, account]);
   const trimmed = query.trim();
   const queryLength = Array.from(trimmed).length;
   const queryValid = queryLength >= 2 && queryLength <= 200;
@@ -55,7 +78,14 @@ export default function Execute() {
           </div>
         </div>
 
-        {!runnable ? (
+        {savedBrief !== undefined ? (
+          <Panel>
+            <BriefResult
+              topStories={savedBrief.topStories}
+              executedAtMs={savedBrief.executedAtMs}
+            />
+          </Panel>
+        ) : !runnable ? (
           <Panel>
             <p className="text-sm text-muted">
               {workflow.onChainOnly === true
