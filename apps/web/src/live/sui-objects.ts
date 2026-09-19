@@ -43,6 +43,21 @@ const releaseBcs = bcs.struct("WebWorkflowRelease", {
   created_at: bcs.u64(),
 });
 
+// Balance<T> is a one-field struct over u64, so it reads as a plain u64 here.
+const vaultBcs = bcs.struct("WebRoyaltyVault", {
+  id: uidBcs,
+  release_id: idBcs,
+  owner: bcs.Address,
+  balance: bcs.u64(),
+});
+
+const executionEventBcs = bcs.struct("WebExecutionEvent", {
+  receipt_id: idBcs,
+  release_id: idBcs,
+  executor: bcs.Address,
+  executed_at: bcs.u64(),
+});
+
 const licenseBcs = bcs.struct("WebLicensePass", {
   id: uidBcs,
   release_id: idBcs,
@@ -92,7 +107,23 @@ export interface LiveRelease {
   priceLicense: bigint;
   priceFork: bigint;
   royaltyBps: bigint;
+  /** Undefined means the seller capped nothing: unlimited runs, no expiry. */
+  maxRuns: bigint | undefined;
+  maxDurationMs: bigint | undefined;
   isListed: boolean;
+}
+
+export interface LiveVault {
+  id: string;
+  releaseId: string;
+  /** The seller. Earnings are theirs, so the UI only shows them to this address. */
+  owner: string;
+  balanceMist: bigint;
+}
+
+export interface ExecutionStats {
+  count: number;
+  lastExecutedAtMs: number | undefined;
 }
 
 export interface OwnedLicense {
@@ -228,6 +259,8 @@ export async function loadRelease(input: {
     priceLicense: BigInt(parsed.price_license),
     priceFork: BigInt(parsed.price_fork),
     royaltyBps: BigInt(parsed.royalty_bps),
+    maxRuns: optionalBigInt(parsed.max_runs),
+    maxDurationMs: optionalBigInt(parsed.max_duration_ms),
     isListed: parsed.is_listed,
   };
 }
@@ -309,4 +342,80 @@ export async function findRecordedReceipt(input: {
     cursor = response.cursor;
   }
   throw new Error("Receipt lookup exceeded the page limit");
+}
+
+/**
+ * Reads the seller's payout vault for a release.
+ *
+ * The balance is what the workflow has actually earned, so the caller is
+ * expected to compare `owner` against the connected wallet before showing it.
+ */
+export async function loadVault(input: {
+  client: ObjectClient;
+  packageId: string;
+  vaultId: string;
+}): Promise<LiveVault> {
+  const vaultId = normalizeSuiAddress(input.vaultId);
+  const { object } = await input.client.getObject({
+    objectId: vaultId,
+    include: { content: true },
+  });
+  if (
+    object.objectId !== vaultId ||
+    object.type !== moduleType(input.packageId, "marketplace", "RoyaltyVault") ||
+    !(object.content instanceof Uint8Array)
+  ) {
+    throw new Error("Configured RoyaltyVault is invalid");
+  }
+  const parsed = vaultBcs.parse(object.content);
+  if (parsed.id.id.bytes !== vaultId) {
+    throw new Error("RoyaltyVault object identity is inconsistent");
+  }
+  return {
+    id: vaultId,
+    releaseId: parsed.release_id.bytes,
+    owner: parsed.owner,
+    balanceMist: BigInt(parsed.balance),
+  };
+}
+
+type EventClient = Pick<SuiGrpcClient, "listEvents">;
+
+/**
+ * Counts recorded executions of a release, newest first.
+ *
+ * Receipts are owned by whoever ran the workflow, so they cannot be listed from
+ * one address. The event the contract emits alongside each receipt can be, and
+ * it carries the same facts.
+ */
+export async function loadExecutionStats(input: {
+  client: EventClient;
+  packageId: string;
+  releaseId: string;
+}): Promise<ExecutionStats> {
+  const releaseId = normalizeSuiAddress(input.releaseId);
+  const response = await input.client.listEvents({
+    filter: { eventType: moduleType(input.packageId, "execution", "ExecutionEvent") },
+    limit: 50,
+    order: "descending",
+  });
+
+  let count = 0;
+  let lastExecutedAtMs: number | undefined;
+  for (const event of response.events) {
+    if (!(event.bcs instanceof Uint8Array)) continue;
+    let parsed;
+    try {
+      parsed = executionEventBcs.parse(event.bcs);
+    } catch {
+      continue;
+    }
+    if (parsed.release_id.bytes !== releaseId) continue;
+    count += 1;
+    const executedAt = Number(parsed.executed_at);
+    if (lastExecutedAtMs === undefined || executedAt > lastExecutedAtMs) {
+      lastExecutedAtMs = executedAt;
+    }
+  }
+  return { count, lastExecutedAtMs };
 }

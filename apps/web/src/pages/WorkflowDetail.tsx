@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import { Heart, MessageCircle, Users } from "lucide-react";
+import { BarChart3, Heart, MessageCircle, Users } from "lucide-react";
 import { PurchaseModal } from "../components/PurchaseModal";
 import { WorkflowThumbnail } from "../components/WorkflowThumbnail";
 import { useToast } from "../components/Toast/ToastProvider";
@@ -9,9 +9,33 @@ import { isRehearsalEnabled } from "../lib/rehearsal";
 import { formatSui } from "../lib/sui-amount";
 import { LIVE_WORKFLOW_ID } from "../live/live-release";
 import { usePurchaseLicense } from "../live/use-purchase-license";
+import { useWorkflowStats } from "../live/use-workflow-stats";
 import { useOnChainWorkflow } from "../live/use-onchain-workflow";
 import { OnChainWorkflowDetail } from "../components/OnChainWorkflowDetail";
 import { useWorkflowStore } from "../stores/workflow-store";
+
+function StatRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className="mt-1 text-lg font-semibold">{value}</dd>
+    </div>
+  );
+}
+
+/**
+ * Coarse on purpose. "3분 전" right after a demo run reads as live; an exact
+ * timestamp reads as a log line and invites questions about clock skew.
+ */
+function relativeTime(atMs: number): string {
+  const seconds = Math.max(0, Math.round((Date.now() - atMs) / 1000));
+  if (seconds < 60) return "방금 전";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}분 전`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  return `${Math.round(hours / 24)}일 전`;
+}
 
 export default function WorkflowDetail() {
   const { workflowId } = useParams<{ workflowId: string }>();
@@ -40,6 +64,10 @@ export default function WorkflowDetail() {
   // Hooks cannot run conditionally, so this loads for every id and simply
   // stays idle for the catalog entries that never reach the fallback below.
   const onChain = useOnChainWorkflow(workflow === undefined ? workflowId : undefined);
+  // Seller-only, and only for the release this app is wired to. Everything in
+  // the panel is read from chain; the catalog numbers are demo dressing and
+  // must not be mixed in with it.
+  const stats = useWorkflowStats(workflow?.id === LIVE_WORKFLOW_ID);
 
   if (!workflow) {
     // Not in the demo catalog: this is either a workflow registered through
@@ -167,6 +195,39 @@ export default function WorkflowDetail() {
             {workflow.description}
           </p>
         </div>
+
+        {stats !== undefined && (
+          <section className="fm-card mt-10 p-6">
+            <h2 className="flex items-center gap-2 text-lg font-semibold">
+              <BarChart3 className="h-5 w-5 text-mint" aria-hidden="true" />
+              워크플로 통계
+              <span className="rounded-full border border-line px-2 py-0.5 text-xs font-normal text-muted">
+                판매자에게만 보임
+              </span>
+            </h2>
+            <p className="mt-2 text-xs text-muted">
+              전부 체인에서 읽은 값입니다.
+            </p>
+            <dl className="mt-5 grid gap-5 sm:grid-cols-2">
+              <StatRow label="누적 판매액" value={formatSui(Number(stats.earnedMist))} />
+              <StatRow label="실행 횟수" value={`${stats.executions.count}회`} />
+              <StatRow
+                label="마지막 실행"
+                value={
+                  stats.executions.lastExecutedAtMs === undefined
+                    ? "아직 없음"
+                    : relativeTime(stats.executions.lastExecutedAtMs)
+                }
+              />
+              <StatRow
+                label="라이선스 조건"
+                value={`${stats.unlimitedRuns ? "실행 무제한" : "실행 횟수 제한"} · ${
+                  stats.neverExpires ? "만료 없음" : "만료 있음"
+                }`}
+              />
+            </dl>
+          </section>
+        )}
 
         <section className="mt-12 pt-6 border-t border-line">
           <h2 className="flex items-center gap-2 text-lg font-semibold mb-4">

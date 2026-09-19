@@ -112,7 +112,12 @@ function rootContent(input: { id?: string; name?: string } = {}): Uint8Array {
   }).toBytes();
 }
 
-function releaseContent(input: { id?: string; rootId?: string } = {}): Uint8Array {
+function releaseContent(input: {
+  id?: string;
+  rootId?: string;
+  maxRuns?: bigint;
+  maxDurationMs?: bigint;
+} = {}): Uint8Array {
   return releaseBcs.serialize({
     id: { id: { bytes: input.id ?? RELEASE_ID } },
     root_id: { bytes: input.rootId ?? ROOT_ID },
@@ -122,8 +127,8 @@ function releaseContent(input: { id?: string; rootId?: string } = {}): Uint8Arra
     price_license: 123n,
     price_fork: 456n,
     royalty_bps: 500n,
-    max_runs: null,
-    max_duration_ms: null,
+    max_runs: input.maxRuns ?? null,
+    max_duration_ms: input.maxDurationMs ?? null,
     is_listed: true,
     created_at: EXECUTED_AT,
   }).toBytes();
@@ -269,8 +274,21 @@ describe("web Sui object BCS adapters", () => {
       priceLicense: 123n,
       priceFork: 456n,
       royaltyBps: 500n,
+      maxRuns: undefined,
+      maxDurationMs: undefined,
       isListed: true,
     });
+  });
+
+  it("reads the run and duration caps a seller set", async () => {
+    const { client } = objectClient(
+      releaseObject({ content: releaseContent({ maxRuns: 10n, maxDurationMs: 60_000n }) }),
+    );
+    await expect(loadRelease({
+      client,
+      packageId: PACKAGE_ID,
+      releaseId: RELEASE_ID,
+    })).resolves.toMatchObject({ maxRuns: 10n, maxDurationMs: 60_000n });
   });
 
   it.each([
