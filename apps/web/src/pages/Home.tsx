@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, GitFork, Store, Upload } from "lucide-react";
+import { ArrowRight, Store, Upload } from "lucide-react";
 
 /**
  * The landing page.
@@ -23,12 +23,6 @@ const ENTRIES = [
     title: "등록",
     body: "내 워크플로를 체인에 올려 판매합니다. 다른 워크플로를 포크해서 올릴 수도 있습니다.",
   },
-  {
-    to: "/fork",
-    icon: GitFork,
-    title: "Fork & Remix",
-    body: "다른 워크플로가 만든 결과를 재료로 새 워크플로를 만드는 방식입니다.",
-  },
 ];
 
 const FLOW = [
@@ -37,10 +31,41 @@ const FLOW = [
   { step: "기록", body: "실행 사실이 체인에 남습니다." },
 ];
 
+/** Sui's drop mark, drawn inline so the page carries no external asset. */
+function SuiMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+      <path d="M12 1.6c.3 0 .6.16.77.43l5.2 8.05a9.2 9.2 0 0 1 1.48 5.02A7.45 7.45 0 0 1 12 22.4a7.45 7.45 0 0 1-7.45-7.3 9.2 9.2 0 0 1 1.48-5.02l5.2-8.05A.92.92 0 0 1 12 1.6Zm0 3.35L7.74 11.5a7.4 7.4 0 0 0-1.19 3.6A5.45 5.45 0 0 0 12 20.4a5.45 5.45 0 0 0 5.45-5.3 7.4 7.4 0 0 0-1.19-3.6L12 4.95Z" />
+    </svg>
+  );
+}
+
 export default function Home() {
   return (
     <div className="min-h-screen bg-ink text-white">
       <div className="max-w-3xl mx-auto">
+        <div className="mb-12 flex flex-col items-center text-center">
+          <div className="flex items-center gap-4">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-mint text-2xl font-bold text-ink">
+              W
+            </span>
+            <span className="text-5xl font-bold tracking-tight">FlowMarket</span>
+          </div>
+
+          {/* The chain everything here settles on, credited under the name. */}
+          <a
+            href="https://sui.io"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-5 flex items-center gap-2 rounded-full border border-line px-4 py-2 text-sm text-muted transition hover:border-mint hover:text-white"
+          >
+            <SuiMark className="h-4 w-4 text-[#4DA2FF]" />
+            <span>
+              Built on <span className="font-semibold text-white">Sui</span>
+            </span>
+          </a>
+        </div>
+
         <h1 className="text-3xl font-bold tracking-tight">
           워크플로를 사고팔고, 산 워크플로를 실행합니다
         </h1>
@@ -57,15 +82,9 @@ export default function Home() {
             마켓 둘러보기
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
-          <Link
-            to="/fork"
-            className="flex items-center gap-2 rounded-2xl border border-line px-6 py-3 text-sm font-semibold hover:border-mint hover:text-mint"
-          >
-            Fork &amp; Remix 보기
-          </Link>
         </div>
 
-        <div className="mt-12 grid gap-3 sm:grid-cols-3">
+        <div className="mt-12 grid gap-3 sm:grid-cols-2">
           {ENTRIES.map((entry) => (
             <Link key={entry.to} to={entry.to} className="fm-card fm-card-interactive p-5">
               <entry.icon className="h-5 w-5 text-mint" aria-hidden="true" />
