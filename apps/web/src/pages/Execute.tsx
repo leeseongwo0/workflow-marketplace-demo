@@ -24,21 +24,6 @@ export default function Execute() {
   const [query, setQuery] = useState("");
   const execute = useExecuteWorkflow();
 
-  const backTo = (location.state as { from?: string } | null)?.from === "profile"
-    ? { href: "/profile", label: "← 프로필로 돌아가기" }
-    : { href: "/marketplace", label: "← Marketplace로 돌아가기" };
-
-  if (workflow === undefined) {
-    return (
-      <div className="min-h-screen bg-ink text-white flex flex-col items-center justify-center gap-4">
-        <p className="text-muted">Workflow not found.</p>
-        <Link to={backTo.href} className="text-mint hover:underline">{backTo.label}</Link>
-      </div>
-    );
-  }
-
-  const runnable = workflow.id === LIVE_WORKFLOW_ID;
-
   // The forked brief has no bundle, so its screen shows a saved run instead of
   // offering to start one. Its headlines come from the original workflow's last
   // real result when this browser has one, because a fork is built out of the
@@ -59,6 +44,22 @@ export default function Execute() {
       executedAtMs: latest?.executedAtMs ?? Date.parse("2026-09-19T08:42:00.000Z"),
     };
   }, [workflow?.id, account]);
+
+  const backTo = (location.state as { from?: string } | null)?.from === "profile"
+    ? { href: "/profile", label: "← 프로필로 돌아가기" }
+    : { href: "/marketplace", label: "← Marketplace로 돌아가기" };
+
+  if (workflow === undefined) {
+    return (
+      <div className="min-h-screen bg-ink text-white flex flex-col items-center justify-center gap-4">
+        <p className="text-muted">Workflow not found.</p>
+        <Link to={backTo.href} className="text-mint hover:underline">{backTo.label}</Link>
+      </div>
+    );
+  }
+
+  const runnable = workflow.id === LIVE_WORKFLOW_ID;
+
   const trimmed = query.trim();
   const queryLength = Array.from(trimmed).length;
   const queryValid = queryLength >= 2 && queryLength <= 200;
