@@ -1,27 +1,44 @@
 import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
 import { SuiGrpcClient } from "@mysten/sui/grpc";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { Transaction } from "@mysten/sui/transactions";
-import { normalizeSuiAddress } from "@mysten/sui/utils";
 import { z } from "zod";
 
 import {
   ExecutorApiError,
   ExecutorClient,
   verifyExecutionContent,
+  verifyExecutionReceipt,
 } from "../../web/src/live/executor-client.js";
 import {
   findOwnedLicense,
   findRecordedReceipt,
   loadMarketplace,
   loadRelease,
+  loadRoot,
 } from "../../web/src/live/sui-objects.js";
 import {
+  buildCreateExecutionRequestTransaction,
   buildPurchaseLicenseTransaction,
   buildRecordReceiptTransaction,
-  verifyExecutionReceipt,
-  type VerifiedReceipt,
 } from "../../web/src/live/transactions.js";
+
+/*
+ * Rewritten for package 0x388adbc4… Three checks this script used to make are
+ * gone because the contract behind them is gone, not because they stopped
+ * mattering:
+ *
+ * - duplicate purchase (abort 4): the new package keeps no buyer registry, so
+ *   a second purchase from the same address succeeds and mints a second pass.
+ *   Confirmed by simulating buy_license from an address that already holds one.
+ * - tampered receipt signature (abort 7): record_execution no longer takes a
+ *   signature. The chain records that an execution happened; it does not check
+ *   who signed the result.
+ * - receipt nonce replay (abort 8): there is no nonce table to replay against.
+ *
+ * What the chain still enforces, and this script still exercises end to end:
+ * a licence must exist to execute, and recording consumes an ExecutionRequest
+ * opened by the licence holder.
+ */
 
 // Sui gRPC returns the base58-encoded 32-byte genesis checkpoint digest.
 // Its four-byte CLI/Published.toml short identifier is 4c78adac.
@@ -59,12 +76,16 @@ const localExecutorUrl = z.string().trim().min(1).refine((value) => {
   }
 }, "must be an exact loopback HTTP(S) URL");
 
+const objectId = z.string().regex(/^0x[0-9a-f]{64}$/u);
+
 const envSchema = z.strictObject({
   SUI_NETWORK: z.literal("testnet"),
   SUI_GRPC_URL: httpsBaseUrl,
-  SUI_PACKAGE_ID: z.string().regex(/^0x[0-9a-f]{64}$/u),
-  MARKETPLACE_ID: z.string().regex(/^0x[0-9a-f]{64}$/u),
-  WORKFLOW_RELEASE_ID: z.string().regex(/^0x[0-9a-f]{64}$/u),
+  SUI_PACKAGE_ID: objectId,
+  MARKETPLACE_ID: objectId,
+  WORKFLOW_ROOT_ID: objectId,
+  WORKFLOW_RELEASE_ID: objectId,
+  ROYALTY_VAULT_ID: objectId,
   SUI_DEPLOYER_PRIVATE_KEY: z.string().min(1),
   VITE_EXECUTOR_BASE_URL: localExecutorUrl,
 });
@@ -75,7 +96,9 @@ function parseEnvironment(): z.infer<typeof envSchema> {
     SUI_GRPC_URL: process.env["SUI_GRPC_URL"],
     SUI_PACKAGE_ID: process.env["SUI_PACKAGE_ID"],
     MARKETPLACE_ID: process.env["MARKETPLACE_ID"],
+    WORKFLOW_ROOT_ID: process.env["WORKFLOW_ROOT_ID"],
     WORKFLOW_RELEASE_ID: process.env["WORKFLOW_RELEASE_ID"],
+    ROYALTY_VAULT_ID: process.env["ROYALTY_VAULT_ID"],
     SUI_DEPLOYER_PRIVATE_KEY: process.env["SUI_DEPLOYER_PRIVATE_KEY"],
     VITE_EXECUTOR_BASE_URL: process.env["VITE_EXECUTOR_BASE_URL"],
   });
@@ -89,35 +112,38 @@ function decodeCanonicalBase64(value: string): Uint8Array {
   return new Uint8Array(bytes);
 }
 
-function hashBytes(value: string): Uint8Array {
-  if (!/^[0-9a-f]{64}$/u.test(value)) throw new Error("Invalid hash");
-  return Uint8Array.from(value.match(/.{2}/gu)?.map((byte) => Number.parseInt(byte, 16)) ?? []);
+type ExecutedTransaction = {
+  $kind: string;
+  Transaction?: {
+    digest: string;
+    status: { success: boolean };
+    effects: { changedObjects: Array<{ objectId: string; idOperation: string }> };
+    objectTypes: Record<string, string>;
+  };
+};
+
+function requireSuccess(result: ExecutedTransaction, label: string): NonNullable<
+  ExecutedTransaction["Transaction"]
+> {
+  const transaction = result.Transaction;
+  if (result.$kind !== "Transaction" || transaction === undefined || !transaction.status.success) {
+    throw new Error(label);
+  }
+  return transaction;
 }
 
-function rawRecordTransaction(input: {
-  packageId: string;
-  marketplaceId: string;
-  licenseId: string;
-  receipt: VerifiedReceipt;
-  signature: Uint8Array;
-}): Transaction {
-  const payload = input.receipt.payload;
-  const transaction = new Transaction();
-  transaction.moveCall({
-    target: `${normalizeSuiAddress(input.packageId)}::marketplace::record_execution`,
-    arguments: [
-      transaction.object(normalizeSuiAddress(input.marketplaceId)),
-      transaction.object(normalizeSuiAddress(input.licenseId)),
-      transaction.pure.address(payload.releaseId),
-      transaction.pure.address(payload.runner),
-      transaction.pure.vector("u8", hashBytes(payload.inputHash)),
-      transaction.pure.vector("u8", hashBytes(payload.outputHash)),
-      transaction.pure.u64(payload.executedAtMs),
-      transaction.pure.vector("u8", hashBytes(payload.nonceHash)),
-      transaction.pure.vector("u8", input.signature),
-    ],
-  });
-  return transaction;
+/** The one object of `type` this transaction created. */
+function createdObject(
+  transaction: NonNullable<ExecutedTransaction["Transaction"]>,
+  type: string,
+): string {
+  const created = transaction.effects.changedObjects.filter(
+    (object) =>
+      object.idOperation === "Created" && transaction.objectTypes[object.objectId] === type,
+  );
+  const first = created[0];
+  if (first === undefined) throw new Error(`Transaction created no ${type}`);
+  return first.objectId;
 }
 
 async function retryExact<T>(lookup: () => Promise<T | undefined>): Promise<T> {
@@ -127,32 +153,6 @@ async function retryExact<T>(lookup: () => Promise<T | undefined>): Promise<T> {
     await new Promise<void>((resolve) => setTimeout(resolve, 1_000));
   }
   throw new Error("Expected Testnet object was not indexed in time");
-}
-
-async function expectMoveAbort(
-  action: () => Promise<unknown>,
-  abortCode: number,
-): Promise<string> {
-  const marker = `abort code: ${abortCode}`;
-  try {
-    const result = await action();
-    if (
-      typeof result === "object" &&
-      result !== null &&
-      "$kind" in result &&
-      result.$kind === "FailedTransaction" &&
-      JSON.stringify(result).includes(marker)
-    ) {
-      const failed = result as { FailedTransaction?: { digest?: string } };
-      return failed.FailedTransaction?.digest ?? "failed-transaction";
-    }
-  } catch (cause) {
-    if (cause instanceof Error && cause.message.includes(marker)) {
-      return "resolution-rejected";
-    }
-    throw cause;
-  }
-  throw new Error(`Expected Move abort ${abortCode}`);
 }
 
 async function main(): Promise<void> {
@@ -167,6 +167,7 @@ async function main(): Promise<void> {
     throw new Error("Configured Sui RPC is not Sui Testnet");
   }
   const executor = new ExecutorClient({ baseUrl: env.VITE_EXECUTOR_BASE_URL });
+
   const marketplace = await loadMarketplace({
     client,
     packageId: env.SUI_PACKAGE_ID,
@@ -177,7 +178,15 @@ async function main(): Promise<void> {
     packageId: env.SUI_PACKAGE_ID,
     releaseId: env.WORKFLOW_RELEASE_ID,
   });
-  if (!release.active) throw new Error("WorkflowRelease is inactive");
+  // Title and blurb live on the root now, so the root is what proves the
+  // configured release belongs to the workflow this script claims to test.
+  const root = await loadRoot({
+    client,
+    packageId: env.SUI_PACKAGE_ID,
+    rootId: env.WORKFLOW_ROOT_ID,
+  });
+  if (!release.isListed) throw new Error("WorkflowRelease is not listed");
+  if (release.rootId !== root.id) throw new Error("WorkflowRelease belongs to another root");
 
   const fakeLicenseId = `0x${"f".repeat(64)}`;
   const unlicensedChallenge = await executor.createChallenge({
@@ -214,16 +223,17 @@ async function main(): Promise<void> {
       signer,
       transaction: buildPurchaseLicenseTransaction({
         packageId: env.SUI_PACKAGE_ID,
-        marketplaceId: marketplace.id,
+        marketplaceConfigId: marketplace.id,
         releaseId: release.id,
-        priceMist: release.priceMist,
+        vaultId: env.ROYALTY_VAULT_ID,
+        priceMist: release.priceLicense,
       }),
-      include: { effects: true },
+      include: { effects: true, objectTypes: true },
     });
-    if (purchase.$kind !== "Transaction" || !purchase.Transaction.status.success) {
-      throw new Error("License purchase failed");
-    }
-    purchaseDigest = purchase.Transaction.digest;
+    purchaseDigest = requireSuccess(
+      purchase as ExecutedTransaction,
+      "License purchase failed",
+    ).digest;
     license = await retryExact(() => findOwnedLicense({
       client,
       packageId: env.SUI_PACKAGE_ID,
@@ -231,24 +241,6 @@ async function main(): Promise<void> {
       releaseId: release.id,
     }));
   }
-
-  const duplicatePurchaseFailure = await expectMoveAbort(
-    () => {
-      const transaction = buildPurchaseLicenseTransaction({
-        packageId: env.SUI_PACKAGE_ID,
-        marketplaceId: marketplace.id,
-        releaseId: release.id,
-        priceMist: release.priceMist,
-      });
-      transaction.setGasBudget(20_000_000);
-      return client.signAndExecuteTransaction({
-        signer,
-        transaction,
-        include: { effects: true },
-      });
-    },
-    4,
-  );
 
   const submittedQuery = "Sui 블록체인";
   const challenge = await executor.createChallenge({
@@ -265,12 +257,19 @@ async function main(): Promise<void> {
     walletSignature: walletSignature.signature,
   });
   await verifyExecutionContent({ response: execution, submittedQuery });
+  if (
+    execution.workflow.releaseId !== release.id ||
+    execution.workflow.version !== release.version
+  ) {
+    throw new Error("Execution result does not belong to this release");
+  }
+  // Self-consistency only: the package no longer publishes an executor key to
+  // check this signature against.
   const verifiedReceipt = await verifyExecutionReceipt({
     receipt: execution.receipt,
     expectedReleaseId: release.id,
     expectedLicenseId: license.id,
     expectedRunner: owner,
-    expectedExecutorPublicKey: marketplace.executorPublicKey,
   });
 
   let replayCode: string | undefined;
@@ -286,102 +285,77 @@ async function main(): Promise<void> {
     throw new Error("Challenge replay was not rejected");
   }
 
-  const tamperedSignature = verifiedReceipt.signature.slice();
-  tamperedSignature[0] = (tamperedSignature[0] ?? 0) ^ 1;
-  const tamperedReceiptFailure = await expectMoveAbort(
-    () => {
-      const transaction = rawRecordTransaction({
-        packageId: env.SUI_PACKAGE_ID,
-        marketplaceId: marketplace.id,
-        licenseId: license.id,
-        receipt: verifiedReceipt,
-        signature: tamperedSignature,
-      });
-      transaction.setGasBudget(20_000_000);
-      return client.signAndExecuteTransaction({
-        signer,
-        transaction,
-        include: { effects: true },
-      });
-    },
-    7,
-  );
-
+  // findRecordedReceipt only matches on release, so a rerun against an already
+  // recorded release skips straight to reporting the existing receipt.
   let receipt = await findRecordedReceipt({
     client,
     packageId: env.SUI_PACKAGE_ID,
-    marketplaceId: marketplace.id,
     owner,
     releaseId: release.id,
-    licenseId: license.id,
-    nonceHash: verifiedReceipt.payload.nonceHash,
   });
+  let requestId: string | undefined;
   let receiptDigest: string | undefined;
   if (receipt === undefined) {
+    // record_execution consumes an ExecutionRequest, and the call that opens
+    // one hands it out itself rather than returning it, so it cannot be
+    // chained into the same programmable transaction.
+    const opened = await client.signAndExecuteTransaction({
+      signer,
+      transaction: buildCreateExecutionRequestTransaction({
+        packageId: env.SUI_PACKAGE_ID,
+        licenseId: license.id,
+        releaseId: release.id,
+      }),
+      include: { effects: true, objectTypes: true },
+    });
+    requestId = createdObject(
+      requireSuccess(opened as ExecutedTransaction, "Opening the execution request failed"),
+      `${env.SUI_PACKAGE_ID}::execution::ExecutionRequest`,
+    );
+
     const recorded = await client.signAndExecuteTransaction({
       signer,
       transaction: buildRecordReceiptTransaction({
         packageId: env.SUI_PACKAGE_ID,
-        marketplaceId: marketplace.id,
         licenseId: license.id,
-        receipt: verifiedReceipt,
+        releaseId: release.id,
+        requestId,
+        recipient: owner,
       }),
-      include: { effects: true },
+      include: { effects: true, objectTypes: true },
     });
-    if (recorded.$kind !== "Transaction" || !recorded.Transaction.status.success) {
-      throw new Error("Valid receipt recording failed");
-    }
-    receiptDigest = recorded.Transaction.digest;
+    receiptDigest = requireSuccess(
+      recorded as ExecutedTransaction,
+      "Recording the execution failed",
+    ).digest;
     receipt = await retryExact(() => findRecordedReceipt({
       client,
       packageId: env.SUI_PACKAGE_ID,
-      marketplaceId: marketplace.id,
       owner,
       releaseId: release.id,
-      licenseId: license.id,
-      nonceHash: verifiedReceipt.payload.nonceHash,
     }));
   }
-
-  const nonceReplayFailure = await expectMoveAbort(
-    () => {
-      const transaction = buildRecordReceiptTransaction({
-        packageId: env.SUI_PACKAGE_ID,
-        marketplaceId: marketplace.id,
-        licenseId: license.id,
-        receipt: verifiedReceipt,
-      });
-      transaction.setGasBudget(20_000_000);
-      return client.signAndExecuteTransaction({
-        signer,
-        transaction,
-        include: { effects: true },
-      });
-    },
-    8,
-  );
 
   process.stdout.write(`${JSON.stringify({
     network: "testnet",
     owner,
-    marketplaceId: marketplace.id,
+    packageId: env.SUI_PACKAGE_ID,
+    marketplaceConfigId: marketplace.id,
+    rootId: root.id,
+    rootName: root.name,
     releaseId: release.id,
     licenseId: license.id,
     purchaseDigest: purchaseDigest ?? "already-owned",
-    duplicatePurchaseRejected: true,
-    duplicatePurchaseFailure,
     unlicensedCode,
     challengeReplayCode: replayCode,
     resultCount: execution.result.items.length,
     inputHash: execution.input.inputHash,
     outputHash: execution.result.outputHash,
+    executionRequestId: requestId ?? "already-recorded",
     receiptId: receipt.id,
     receiptDigest: receiptDigest ?? "already-recorded",
-    tamperedReceiptRejected: true,
-    tamperedReceiptFailure,
-    nonceReplayRejected: true,
-    nonceReplayFailure,
     executorKeyFingerprint: verifiedReceipt.executorKeyFingerprint,
+    onChainReceiptVerifiesSignature: false,
     trace: execution.trace,
   }, null, 2)}\n`);
 }

@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "workflow-marketplace",
+  "compatibility_date": "2026-09-14",
+  "assets": {
+    "directory": "./dist",
+    // React Router owns the routes, so unknown paths must serve index.html
+    // instead of a 404 (otherwise /marketplace/workflow-a breaks on refresh).
+    "not_found_handling": "single-page-application"
+  }
+}

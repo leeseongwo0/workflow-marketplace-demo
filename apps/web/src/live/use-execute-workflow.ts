@@ -1,0 +1,388 @@
+import { useEffect, useState } from "react";
+import { useCurrentAccount, useCurrentClient, useCurrentNetwork, useDAppKit } from "@mysten/dapp-kit-react";
+
+import { webConfig } from "./config";
+import { useLiveReleaseStore } from "./live-release";
+import type { ExecutionResponse, VerifiedReceipt } from "./executor-client";
+import {
+  ExecutorApiError,
+  ExecutorClient,
+  verifyExecutionContent,
+  verifyExecutionReceipt,
+} from "./executor-client";
+import type { ExecutionHistoryEntry } from "./execution-history";
+import {
+  forgetExecution,
+  listExecutionHistory,
+  rememberExecution,
+} from "./execution-history";
+import type { OwnedLicense } from "./sui-objects";
+import { findOwnedLicense } from "./sui-objects";
+import {
+  buildCreateExecutionRequestTransaction,
+  buildRecordReceiptTransaction,
+} from "./transactions";
+import { executeSignedTransaction, requireCreated } from "./execute-signed";
+
+export type ExecuteStep =
+  | "idle"
+  | "checking_license"
+  | "creating_challenge"
+  | "awaiting_signature"
+  | "running"
+  | "verifying"
+  | "done"
+  | "error";
+
+export type RecordStatus =
+  | "idle"
+  | "opening_request"
+  | "signing"
+  | "confirming"
+  | "recorded"
+  | "error";
+
+const STEP_LABEL: Partial<Record<ExecuteStep, string>> = {
+  checking_license: "라이선스를 확인하는 중…",
+  creating_challenge: "실행 요청을 만드는 중…",
+  awaiting_signature: "지갑에서 서명을 기다리는 중…",
+  running: "워크플로를 실행하는 중…",
+  verifying: "실행 결과와 영수증을 검증하는 중…",
+};
+
+/**
+ * Recording normally needs two signatures, but a retry that reuses a request
+ * already opened needs only the second. The counter has to follow that or it
+ * promises a wallet prompt that never comes.
+ */
+export function recordStatusLabelFor(
+  status: RecordStatus,
+  signatures: 1 | 2,
+): string | undefined {
+  if (status === "opening_request") {
+    return "온체인 실행 요청을 여는 중… (지갑 서명 1/2)";
+  }
+  if (status === "signing") {
+    return signatures === 2
+      ? "실행 기록을 남기는 중… (지갑 서명 2/2)"
+      : "실행 기록을 남기는 중… (지갑 서명)";
+  }
+  if (status === "confirming") {
+    return "체인에서 기록이 확정되기를 기다리는 중…";
+  }
+  return undefined;
+}
+
+/*
+ * The contract gives an ExecutionRequest ten minutes; stopping a minute short
+ * keeps a reused one from expiring midway through the second signature.
+ */
+const REQUEST_REUSE_WINDOW_MS = 9 * 60 * 1000;
+
+function decodeBase64(value: string): Uint8Array {
+  const binary = atob(value);
+  if (btoa(binary) !== value) throw new Error("Challenge bytes are not canonical base64");
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+function messageFor(cause: unknown): string {
+  if (cause instanceof ExecutorApiError) {
+    if (cause.code === "EXECUTOR_UNREACHABLE") {
+      return "로컬 executor에 연결하지 못했습니다. executor를 실행한 뒤 다시 시도해 주세요.";
+    }
+    if (cause.code === "EXECUTOR_TIMEOUT") {
+      return "executor 응답이 시간 내에 오지 않았습니다.";
+    }
+    return cause.message;
+  }
+  if (cause instanceof Error) {
+    const message = cause.message.toLowerCase();
+    if (message.includes("reject") || message.includes("denied") || message.includes("cancel")) {
+      return "지갑에서 서명을 취소했습니다.";
+    }
+    return cause.message;
+  }
+  return "실행을 완료하지 못했습니다.";
+}
+
+export function useExecuteWorkflow() {
+  const account = useCurrentAccount();
+  const client = useCurrentClient();
+  const network = useCurrentNetwork();
+  const dAppKit = useDAppKit();
+  const release = useLiveReleaseStore((s) => s.release);
+  const marketplace = useLiveReleaseStore((s) => s.marketplace);
+
+  const [step, setStep] = useState<ExecuteStep>("idle");
+  const [error, setError] = useState<string | undefined>(undefined);
+  const [execution, setExecution] = useState<ExecutionResponse | undefined>(undefined);
+  const [receipt, setReceipt] = useState<VerifiedReceipt | undefined>(undefined);
+  const [license, setLicense] = useState<OwnedLicense | undefined>(undefined);
+  // The id of the receipt this run wrote, not "some receipt for this release".
+  // Receipts on chain carry no execution identity, so an older one says nothing
+  // about whether the execution on screen has been recorded.
+  const [recorded, setRecorded] = useState<string | undefined>(undefined);
+  const [recordStatus, setRecordStatus] = useState<RecordStatus>("idle");
+  // Kept across attempts on purpose. Recording needs two wallet signatures and
+  // the zkLogin prover fails on the second when both are asked for back to
+  // back, so a retry should reuse the request the first attempt already paid
+  // for rather than open another one.
+  const [openRequest, setOpenRequest] = useState<
+    { id: string; expiresAtMs: number } | undefined
+  >(undefined);
+  const [recordSignatures, setRecordSignatures] = useState<1 | 2>(2);
+  const [history, setHistory] = useState<ExecutionHistoryEntry[]>([]);
+
+  const owner = account === null ? undefined : account.address;
+  useEffect(() => {
+    setHistory(owner === undefined ? [] : listExecutionHistory(owner));
+  }, [owner]);
+
+  const ready =
+    account !== null &&
+    network === "testnet" &&
+    webConfig.mode === "live" &&
+    release !== undefined &&
+    marketplace !== undefined;
+
+  const run = async (query: string) => {
+    // Checked inline rather than via `ready` so TypeScript narrows webConfig
+    // to its live shape for the rest of the function.
+    if (
+      account === null ||
+      network !== "testnet" ||
+      webConfig.mode !== "live" ||
+      release === undefined ||
+      marketplace === undefined
+    ) {
+      setError("지갑 연결과 온체인 정보가 준비되지 않았습니다.");
+      setStep("error");
+      return;
+    }
+    setError(undefined);
+    setExecution(undefined);
+    setReceipt(undefined);
+    setRecorded(undefined);
+    setRecordStatus("idle");
+    // The open request is deliberately kept across runs. It is bound to the
+    // licence and release, not to one execution, so a request already paid for
+    // stays usable and the next record attempt costs one signature instead of
+    // two.
+
+    try {
+      setStep("checking_license");
+      const owned = await findOwnedLicense({
+        client,
+        packageId: webConfig.packageId,
+        owner: account.address,
+        releaseId: release.id,
+      });
+      if (owned === undefined) {
+        throw new Error("이 워크플로의 라이선스를 보유하고 있지 않습니다. 먼저 구매해 주세요.");
+      }
+      setLicense(owned);
+
+      setStep("creating_challenge");
+      const executor = new ExecutorClient({ baseUrl: webConfig.executorBaseUrl });
+      const challenge = await executor.createChallenge({
+        runnerAddress: account.address,
+        releaseId: release.id,
+        licenseId: owned.id,
+        query,
+      });
+
+      setStep("awaiting_signature");
+      const signed = await dAppKit.signPersonalMessage({
+        message: decodeBase64(challenge.personalMessage.bytesBase64),
+        account,
+        network: "testnet",
+      });
+      if (signed.bytes !== challenge.personalMessage.bytesBase64) {
+        throw new Error("지갑이 서명한 내용이 실행 요청과 일치하지 않습니다.");
+      }
+
+      // Only asked for once real Seal is switched on; the executor omits the
+      // message until then.
+      let sealSessionSignature: string | undefined;
+      const sealSessionMessage = challenge.sealSessionMessage;
+      if (sealSessionMessage !== undefined) {
+        const sealSigned = await dAppKit.signPersonalMessage({
+          message: decodeBase64(sealSessionMessage.bytesBase64),
+          account,
+          network: "testnet",
+        });
+        if (sealSigned.bytes !== sealSessionMessage.bytesBase64) {
+          throw new Error("지갑이 서명한 내용이 Seal 세션 요청과 일치하지 않습니다.");
+        }
+        sealSessionSignature = sealSigned.signature;
+      }
+
+      setStep("running");
+      const response = await executor.execute({
+        challengeId: challenge.challengeId,
+        walletSignature: signed.signature,
+        ...(sealSessionSignature === undefined ? {} : { sealSessionSignature }),
+      });
+
+      setStep("verifying");
+      await verifyExecutionContent({ response, submittedQuery: query });
+      // workflowType is pinned by the response schema, so release identity and
+      // version are what is left to check here.
+      if (
+        response.workflow.releaseId !== release.id ||
+        response.workflow.version !== release.version
+      ) {
+        throw new Error("실행 결과가 이 워크플로의 것이 아닙니다.");
+      }
+      const verified = await verifyExecutionReceipt({
+        receipt: response.receipt,
+        expectedReleaseId: release.id,
+        expectedLicenseId: owned.id,
+        expectedRunner: account.address,
+      });
+      rememberExecution(account.address, response);
+      setHistory(listExecutionHistory(account.address));
+      setExecution(response);
+      setReceipt(verified);
+      setStep("done");
+    } catch (cause) {
+      setError(messageFor(cause));
+      setStep("error");
+    }
+  };
+
+  /**
+   * Writes the execution to chain.
+   *
+   * Two signatures rather than one: `record_execution` consumes an
+   * ExecutionRequest, and the call that opens one hands it out itself instead
+   * of returning it, so its id only exists once that transaction has landed.
+   */
+  const record = async () => {
+    if (
+      account === null ||
+      network !== "testnet" ||
+      webConfig.mode !== "live" ||
+      release === undefined ||
+      marketplace === undefined ||
+      receipt === undefined ||
+      license === undefined
+    ) {
+      return;
+    }
+    setError(undefined);
+    try {
+      const reusable =
+        openRequest !== undefined && openRequest.expiresAtMs > Date.now()
+          ? openRequest.id
+          : undefined;
+
+      let requestId: string;
+      setRecordSignatures(reusable === undefined ? 2 : 1);
+      if (reusable === undefined) {
+        setRecordStatus("opening_request");
+        const openSigned = await dAppKit.signTransaction({
+          transaction: buildCreateExecutionRequestTransaction({
+            packageId: webConfig.packageId,
+            licenseId: license.id,
+            releaseId: release.id,
+          }),
+          account,
+          network: "testnet",
+        });
+        const opened = await executeSignedTransaction({ client, signed: openSigned });
+        requestId = requireCreated(
+          opened,
+          `${webConfig.packageId}::execution::ExecutionRequest`,
+        );
+        setOpenRequest({ id: requestId, expiresAtMs: Date.now() + REQUEST_REUSE_WINDOW_MS });
+      } else {
+        requestId = reusable;
+      }
+
+      setRecordStatus("signing");
+      const recordSigned = await dAppKit.signTransaction({
+        transaction: buildRecordReceiptTransaction({
+          packageId: webConfig.packageId,
+          licenseId: license.id,
+          releaseId: release.id,
+          requestId,
+          recipient: account.address,
+        }),
+        account,
+        network: "testnet",
+      });
+      const recordExecuted = await executeSignedTransaction({ client, signed: recordSigned });
+      // The request is spent the moment this lands. Dropping it here rather
+      // than after the lookup below matters: if the lookup fails, a retry that
+      // still held this id would abort with "request already claimed" and the
+      // real reason — a record that already succeeded — would stay hidden.
+      setOpenRequest(undefined);
+
+      setRecordStatus("confirming");
+      // The effects name the receipt this transaction created, so there is
+      // nothing to look up and nothing to wait for indexing on.
+      setRecorded(
+        requireCreated(recordExecuted, `${webConfig.packageId}::execution::ExecutionReceipt`),
+      );
+      setRecordStatus("recorded");
+    } catch (cause) {
+      // The UI only ever shows a flattened message. Recording spans two wallet
+      // round trips, so when it breaks the stack is the only thing that says
+      // which of them broke — print the original rather than lose it.
+      console.error("[record] failed:", cause);
+      setError(messageFor(cause));
+      setRecordStatus("error");
+    }
+  };
+
+  /**
+   * Shows a stored run again. The receipt is re-checked locally rather than
+   * trusted from storage, so a tampered entry cannot put a forged receipt on
+   * screen. Nothing is sent to the executor and no signature is asked for.
+   */
+  const replay = async (entry: ExecutionHistoryEntry) => {
+    if (account === null || release === undefined) return;
+    setError(undefined);
+    setRecorded(undefined);
+    setRecordStatus("idle");
+    try {
+      const verified = await verifyExecutionReceipt({
+        receipt: entry.response.receipt,
+        expectedReleaseId: entry.response.receipt.payload.releaseId,
+        expectedLicenseId: entry.response.receipt.payload.licenseId,
+        expectedRunner: account.address,
+      });
+      setExecution(entry.response);
+      setReceipt(verified);
+      setStep("done");
+    } catch (cause) {
+      setError(messageFor(cause));
+      setStep("error");
+    }
+  };
+
+  const forget = (executionId: string) => {
+    if (account === null) return;
+    forgetExecution(account.address, executionId);
+    setHistory(listExecutionHistory(account.address));
+  };
+
+  return {
+    ready,
+    step,
+    history,
+    replay,
+    forget,
+    stepLabel: STEP_LABEL[step],
+    busy: step !== "idle" && step !== "done" && step !== "error",
+    error,
+    execution,
+    receipt,
+    recorded,
+    recordStatus,
+    recordStatusLabel: recordStatusLabelFor(recordStatus, recordSignatures),
+    run,
+    record,
+  };
+}

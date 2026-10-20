@@ -45,6 +45,8 @@ const inputSchema = z.strictObject({
   packageId: optionalValue,
   marketplaceId: optionalValue,
   releaseId: optionalValue,
+  rootId: optionalValue,
+  vaultId: optionalValue,
 });
 
 interface WebConfigBase {
@@ -60,12 +62,16 @@ export type WebConfig =
       packageId: string;
       marketplaceId: string;
       releaseId: string;
+      rootId: string;
+      vaultId: string;
     })
   | (WebConfigBase & {
       mode: "fixture" | "configuration_error";
       packageId?: undefined;
       marketplaceId?: undefined;
       releaseId?: undefined;
+      rootId?: undefined;
+      vaultId?: undefined;
     });
 
 export function resolveWebConfig(
@@ -79,6 +85,8 @@ export function resolveWebConfig(
     packageId: env["VITE_SUI_PACKAGE_ID"],
     marketplaceId: env["VITE_MARKETPLACE_ID"],
     releaseId: env["VITE_WORKFLOW_RELEASE_ID"],
+    rootId: env["VITE_WORKFLOW_ROOT_ID"],
+    vaultId: env["VITE_ROYALTY_VAULT_ID"],
   });
 
   if (!parsed.success) {
@@ -102,6 +110,8 @@ export function resolveWebConfig(
     parsed.data.packageId,
     parsed.data.marketplaceId,
     parsed.data.releaseId,
+    parsed.data.rootId,
+    parsed.data.vaultId,
   ];
   if (ids.every((value) => value === undefined)) {
     return { ...base, mode: "fixture" };
@@ -111,7 +121,7 @@ export function resolveWebConfig(
   }
 
   const parsedIds = z
-    .tuple([address, address, address])
+    .tuple([address, address, address, address, address])
     .safeParse(ids);
   if (!parsedIds.success) {
     return { ...base, mode: "configuration_error" };
@@ -122,6 +132,8 @@ export function resolveWebConfig(
     packageId: parsedIds.data[0],
     marketplaceId: parsedIds.data[1],
     releaseId: parsedIds.data[2],
+    rootId: parsedIds.data[3],
+    vaultId: parsedIds.data[4],
   };
 }
 

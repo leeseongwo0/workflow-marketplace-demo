@@ -9,6 +9,8 @@ import {
 const PACKAGE_ID = `0x${"a".repeat(64)}`;
 const MARKETPLACE_ID = `0x${"b".repeat(64)}`;
 const RELEASE_ID = `0x${"c".repeat(64)}`;
+const ROOT_ID = `0x${"d".repeat(64)}`;
+const VAULT_ID = `0x${"e".repeat(64)}`;
 
 const LIVE_ENV = {
   VITE_SUI_NETWORK: "testnet",
@@ -18,6 +20,8 @@ const LIVE_ENV = {
   VITE_SUI_PACKAGE_ID: PACKAGE_ID,
   VITE_MARKETPLACE_ID: MARKETPLACE_ID,
   VITE_WORKFLOW_RELEASE_ID: RELEASE_ID,
+  VITE_WORKFLOW_ROOT_ID: ROOT_ID,
+  VITE_ROYALTY_VAULT_ID: VAULT_ID,
 };
 
 describe("web live configuration", () => {
@@ -36,6 +40,8 @@ describe("web live configuration", () => {
       VITE_SUI_PACKAGE_ID: "0xA",
       VITE_MARKETPLACE_ID: "0xB",
       VITE_WORKFLOW_RELEASE_ID: "0xC",
+      VITE_WORKFLOW_ROOT_ID: "0xD",
+      VITE_ROYALTY_VAULT_ID: "0xE",
     });
 
     expect(config).toEqual({
@@ -47,6 +53,8 @@ describe("web live configuration", () => {
       packageId: `0x${"0".repeat(63)}a`,
       marketplaceId: `0x${"0".repeat(63)}b`,
       releaseId: `0x${"0".repeat(63)}c`,
+      rootId: `0x${"0".repeat(63)}d`,
+      vaultId: `0x${"0".repeat(63)}e`,
     });
 
     expect(explorerObjectUrl(config, "0x123")).toBe(
@@ -73,6 +81,8 @@ describe("web live configuration", () => {
     expect("packageId" in config).toBe(false);
     expect("marketplaceId" in config).toBe(false);
     expect("releaseId" in config).toBe(false);
+    expect("rootId" in config).toBe(false);
+    expect("vaultId" in config).toBe(false);
   });
 
   it.each([

@@ -86,6 +86,9 @@ async function validChallengeResponse(input: ChallengeFixtureOptions = {}) {
       bytesBase64: encodeBase64(message),
       preview: new TextDecoder().decode(message),
     },
+    sealSessionMessage: {
+      bytesBase64: encodeBase64(new TextEncoder().encode("seal-session-message")),
+    },
   };
 }
 
@@ -277,6 +280,39 @@ describe("ExecutorClient", () => {
     });
   });
 
+  // The deployed executor does not return sealSessionMessage yet, so a
+  // challenge without it has to keep working. Requiring the field would break
+  // execution at the very first step.
+  it("accepts a challenge response that omits the Seal session message", async () => {
+    const response = await validChallengeResponse();
+    const { sealSessionMessage: _omitted, ...withoutSealSession } = response;
+    const fetch = vi.fn(async () => jsonResponse(withoutSealSession));
+    const client = new ExecutorClient({
+      baseUrl: BASE_URL,
+      fetch,
+      now: () => CHALLENGE_NOW_MS,
+    });
+
+    const result = await client.createChallenge(CHALLENGE_REQUEST);
+
+    expect(result.sealSessionMessage).toBeUndefined();
+    expect(result.personalMessage).toEqual(response.personalMessage);
+  });
+
+  it("returns the Seal session message once the executor sends one", async () => {
+    const response = await validChallengeResponse();
+    const fetch = vi.fn(async () => jsonResponse(response));
+    const client = new ExecutorClient({
+      baseUrl: BASE_URL,
+      fetch,
+      now: () => CHALLENGE_NOW_MS,
+    });
+
+    const result = await client.createChallenge(CHALLENGE_REQUEST);
+
+    expect(result.sealSessionMessage).toEqual(response.sealSessionMessage);
+  });
+
   it("rejects noncanonical challenge bytes before a wallet can sign them", async () => {
     const response = await validChallengeResponse();
     const canonicalBytes = Uint8Array.from(
@@ -327,6 +363,48 @@ describe("ExecutorClient", () => {
 
     await expect(client.execute(request)).resolves.toEqual(response);
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("forwards an optional Seal session signature in the execute request body", async () => {
+    const response = validExecutionResponse();
+    let sentBody: unknown;
+    const fetch = vi.fn(async (_input: string | URL, init?: RequestInit) => {
+      sentBody = JSON.parse(init?.body as string);
+      return jsonResponse(response);
+    });
+    const client = new ExecutorClient({ baseUrl: BASE_URL, fetch });
+
+    await client.execute({
+      challengeId: CHALLENGE_ID,
+      walletSignature: "sui-signature",
+      sealSessionSignature: "seal-session-signature",
+    });
+
+    expect(sentBody).toEqual({
+      challengeId: CHALLENGE_ID,
+      walletSignature: "sui-signature",
+      sealSessionSignature: "seal-session-signature",
+    });
+  });
+
+  it("omits the Seal session signature when not provided, for backward compatibility", async () => {
+    const response = validExecutionResponse();
+    let sentBody: unknown;
+    const fetch = vi.fn(async (_input: string | URL, init?: RequestInit) => {
+      sentBody = JSON.parse(init?.body as string);
+      return jsonResponse(response);
+    });
+    const client = new ExecutorClient({ baseUrl: BASE_URL, fetch });
+
+    await client.execute({
+      challengeId: CHALLENGE_ID,
+      walletSignature: "sui-signature",
+    });
+
+    expect(sentBody).toEqual({
+      challengeId: CHALLENGE_ID,
+      walletSignature: "sui-signature",
+    });
   });
 
   it("accepts normalized submitted query and canonical hashes of displayed items", async () => {
@@ -503,5 +581,39 @@ describe("ExecutorClient", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("executor fetch invocation", () => {
+  it("never calls fetch as a method of the request options", async () => {
+    // Browsers throw "Illegal invocation" when fetch runs with a `this` that is
+    // not the window, so calling `options.fetch(...)` breaks the app while
+    // leaving Node-based tests green. Asserting on the receiver is the only way
+    // to catch that here.
+    const receivers: unknown[] = [];
+    const recordingFetch = function (this: unknown): Promise<Response> {
+      receivers.push(this);
+      return Promise.resolve(
+        new Response(JSON.stringify({ error: { code: "NOPE", message: "stop here" } }), {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    };
+
+    const client = new ExecutorClient({
+      baseUrl: "http://127.0.0.1:3001",
+      fetch: recordingFetch as unknown as typeof fetch,
+    });
+    await expect(client.createChallenge({
+      runnerAddress: `0x${"1".repeat(64)}`,
+      releaseId: `0x${"2".repeat(64)}`,
+      licenseId: `0x${"3".repeat(64)}`,
+      query: "Sui",
+    })).rejects.toThrow();
+
+    expect(receivers).toHaveLength(1);
+    const receiver = receivers[0];
+    expect(receiver === undefined || receiver === globalThis).toBe(true);
   });
 });

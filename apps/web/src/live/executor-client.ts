@@ -1,5 +1,6 @@
-import { canonicalJsonBytes } from "@aiwf/shared";
+import { canonicalJsonBytes, encodeReceiptMessageBcs } from "@aiwf/shared";
 import { normalizeQuery } from "@aiwf/workflow-google-news";
+import { Ed25519PublicKey } from "@mysten/sui/keypairs/ed25519";
 import { normalizeSuiAddress } from "@mysten/sui/utils";
 import { z } from "zod";
 
@@ -42,6 +43,14 @@ export const challengeResponseSchema = z.strictObject({
     bytesBase64: base64Schema,
     preview: z.string().min(1),
   }),
+  // Optional on purpose: the deployed executor does not return this yet.
+  // Once it does, the client signs it and forwards sealSessionSignature
+  // without needing another change here.
+  sealSessionMessage: z
+    .strictObject({
+      bytesBase64: base64Schema,
+    })
+    .optional(),
 });
 
 export const executionResponseSchema = z.strictObject({
@@ -57,9 +66,13 @@ export const executionResponseSchema = z.strictObject({
     outputHash: hashSchema,
   }),
   trace: z.array(
+    // Mirrors the executor's own trace union. An unknown value fails the whole
+    // response, so this has to include steps the Seal-enabled executor emits
+    // even though the LocalDemoKeyProvider path never reaches them.
     z.enum([
       "WALLET_SIGNATURE_VERIFIED",
       "LICENSE_VERIFIED",
+      "SEAL_SESSION_VERIFIED",
       "WALRUS_BLOB_VERIFIED",
       "BUNDLE_DECRYPTED_LOCAL_SERVER",
       "RSS_FETCHED",
@@ -264,8 +277,14 @@ async function postJson(input: {
 }): Promise<unknown> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), input.timeoutMs);
+  // Pulled into a local before calling. `input.fetch(...)` would run fetch as a
+  // method of this options object, and the browser's fetch refuses any `this`
+  // that is not the window: it throws "Illegal invocation", which this function
+  // then reports as an unreachable executor. Node's fetch does not care, so
+  // tests and the CLI script never saw it.
+  const doFetch = input.fetch;
   try {
-    const response = await input.fetch(input.url, {
+    const response = await doFetch(input.url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(input.body),
@@ -312,7 +331,7 @@ export class ExecutorClient {
 
   constructor(input: { baseUrl: string; fetch?: FetchLike; now?: () => number }) {
     this.#baseUrl = input.baseUrl;
-    this.#fetch = input.fetch ?? globalThis.fetch;
+    this.#fetch = input.fetch ?? globalThis.fetch.bind(globalThis);
     this.#now = input.now ?? Date.now;
   }
 
@@ -353,12 +372,19 @@ export class ExecutorClient {
       expectedQuery: input.query,
       nowMs: this.#now(),
     });
+    // Seal's session message has its own (non-canonical-JSON) format, so it
+    // is only checked for well-formed base64 here, not deep-validated like
+    // personalMessage — decoding is what lets a wallet sign it.
+    if (parsed.data.sealSessionMessage !== undefined) {
+      decodeCanonicalBase64(parsed.data.sealSessionMessage.bytesBase64);
+    }
     return parsed.data;
   }
 
   async execute(input: {
     challengeId: string;
     walletSignature: string;
+    sealSessionSignature?: string;
   }): Promise<ExecutionResponse> {
     const response = await postJson({
       fetch: this.#fetch,
@@ -372,4 +398,103 @@ export class ExecutorClient {
     }
     return parsed.data;
   }
+}
+
+const verifiedReceiptBrand: unique symbol = Symbol("verifiedReceipt");
+
+export interface VerifiedReceipt {
+  readonly [verifiedReceiptBrand]: true;
+  readonly payload: ExecutionReceiptDto["payload"];
+  readonly signature: Uint8Array;
+  readonly bcsBytes: Uint8Array;
+  readonly executorPublicKey: Uint8Array;
+  readonly executorKeyFingerprint: string;
+}
+
+function hexBytes(value: string): Uint8Array {
+  if (!/^[0-9a-f]{64}$/u.test(value)) throw new Error("Receipt hash is invalid");
+  return Uint8Array.from(
+    value.match(/.{2}/gu)?.map((byte) => Number.parseInt(byte, 16)) ?? [],
+  );
+}
+
+function decodeFixedBase64(
+  value: string,
+  length: number | undefined,
+  label: string,
+): Uint8Array {
+  let binary: string;
+  try {
+    binary = atob(value);
+  } catch {
+    throw new Error(`${label} is not base64`);
+  }
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  if ((length !== undefined && bytes.length !== length) || btoa(binary) !== value) {
+    throw new Error(`${label} has an invalid length or encoding`);
+  }
+  return bytes;
+}
+
+function bytesHex(value: Uint8Array): string {
+  return Array.from(value, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Checks that the receipt really covers this execution and that the executor
+ * signed the bytes it claims to have signed.
+ *
+ * What it can no longer do is tie the signing key to an identity: the deployed
+ * package has no executor public key on it, so the key is only ever the one the
+ * executor itself supplied. The fingerprint is returned so the same key can at
+ * least be recognised across runs.
+ */
+export async function verifyExecutionReceipt(input: {
+  receipt: ExecutionReceiptDto;
+  expectedReleaseId: string;
+  expectedLicenseId: string;
+  expectedRunner: string;
+}): Promise<VerifiedReceipt> {
+  const payload = input.receipt.payload;
+  if (
+    payload.releaseId !== normalizeSuiAddress(input.expectedReleaseId) ||
+    payload.licenseId !== normalizeSuiAddress(input.expectedLicenseId) ||
+    payload.runner !== normalizeSuiAddress(input.expectedRunner)
+  ) {
+    throw new Error("Receipt identity does not match this execution");
+  }
+  const bcsBytes = decodeFixedBase64(input.receipt.bcsBase64, undefined, "Receipt BCS");
+  const signature = decodeFixedBase64(input.receipt.signatureBase64, 64, "Receipt signature");
+  const executorPublicKey = decodeFixedBase64(
+    input.receipt.executorPublicKeyBase64,
+    32,
+    "Executor public key",
+  );
+  const expectedBcs = encodeReceiptMessageBcs({
+    releaseId: payload.releaseId,
+    licenseId: payload.licenseId,
+    runner: payload.runner,
+    inputHash: hexBytes(payload.inputHash),
+    outputHash: hexBytes(payload.outputHash),
+    executedAtMs: BigInt(payload.executedAtMs),
+    nonceHash: hexBytes(payload.nonceHash),
+  });
+  if (!equalBytes(bcsBytes, expectedBcs)) {
+    throw new Error("Receipt BCS does not match the signed payload");
+  }
+  const publicKey = new Ed25519PublicKey(executorPublicKey);
+  if (!(await publicKey.verify(bcsBytes, signature))) {
+    throw new Error("Receipt signature is invalid");
+  }
+  const fingerprintBytes = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", executorPublicKey.slice().buffer),
+  );
+  return {
+    [verifiedReceiptBrand]: true,
+    payload,
+    signature,
+    bcsBytes,
+    executorPublicKey,
+    executorKeyFingerprint: bytesHex(fingerprintBytes).slice(0, 16),
+  };
 }
